@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monte Carlo · Credit Spread Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080810;
+    --surface: #0f0f1a;
+    --surface2: #141420;
+    --border: #1a1a2e;
+    --green: #00e5a0;
+    --yellow: #f5c518;
+    --red: #ff4560;
+    --blue: #3b82f6;
+    --text: #e2e2f0;
+    --muted: #555570;
+    --dim: #333350;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 40px;
+  }
+
+  .header-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 10px;
+  }
+
+  .header h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(32px, 6vw, 56px);
+    line-height: 1;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .header h1 em {
+    font-style: normal;
+    color: var(--green);
+  }
+
+  .header-sub {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Controls */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    margin-bottom: 28px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .control-group .value-display {
+    font-size: 20px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 2px;
+    background: var(--dim);
+    border-radius: 1px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--green);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0,229,160,0.5);
+  }
+
+  .run-btn {
+    grid-column: 1 / -1;
+    background: var(--green);
+    color: #080810;
+    border: none;
+    border-radius: 4px;
+    padding: 14px 24px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .run-btn:hover {
+    background: #00ffb3;
+    box-shadow: 0 0 20px rgba(0,229,160,0.4);
+  }
+
+  .run-btn:active { transform: scale(0.98); }
+
+  /* Canvas */
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 28px;
+    position: relative;
+  }
+
+  .chart-title {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  canvas {
+    width: 100%;
+    display: block;
+    border-radius: 4px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .legend-line {
+    width: 24px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    padding: 20px;
+    transition: background 0.15s;
+  }
+
+  .stat-card:hover { background: var(--surface2); }
+
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-sub {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .green { color: var(--green); }
+  .yellow { color: var(--yellow); }
+  .red { color: var(--red); }
+  .blue { color: var(--blue); }
+
+  /* Distribution bar */
+  .dist-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 28px;
+  }
+
+  .dist-title {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .dist-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 100px;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  .dist-label { font-size: 11px; color: var(--muted); }
+
+  .dist-bar-bg {
+    height: 6px;
+    background: var(--dim);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .dist-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .dist-pct {
+    font-size: 12px;
+    text-align: right;
+  }
+
+  /* Monthly return histogram */
+  .histogram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 28px;
+  }
+
+  /* Loading state */
+  .loading {
+    text-align: center;
+    padding: 60px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+
+  .loading span {
+    color: var(--green);
+    animation: blink 1s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Assumptions box */
+  .assumptions {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--yellow);
+    border-radius: 8px;
+    padding: 20px 24px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .assumptions strong {
+    color: var(--yellow);
+    display: block;
+    margin-bottom: 8px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 580px) {
+    .dist-row { grid-template-columns: 110px 1fr 70px; }
+    .controls { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="header-eyebrow">Credit Spread Portfolio · 5-Year Projection</div>
+    <h1>Monte Carlo<br><em>Simulator</em></h1>
+    <div class="header-sub">1,000 simulated paths · Weekly bull put spreads · Mega-cap equities</div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>Starting Capital</label>
+      <div class="value-display" id="val-capital">$50,000</div>
+      <input type="range" id="sl-capital" min="10000" max="250000" step="5000" value="50000">
+    </div>
+    <div class="control-group">
+      <label>Target Monthly Return</label>
+      <div class="value-display" id="val-return">9%</div>
+      <input type="range" id="sl-return" min="3" max="15" step="0.5" value="9">
+    </div>
+    <div class="control-group">
+      <label>Monthly Std Deviation</label>
+      <div class="value-display" id="val-stddev">4%</div>
+      <input type="range" id="sl-stddev" min="1" max="12" step="0.5" value="4">
+    </div>
+    <div class="control-group">
+      <label>Black Swan Freq (months)</label>
+      <div class="value-display" id="val-swan">1 in 18</div>
+      <input type="range" id="sl-swan" min="6" max="48" step="1" value="18">
+    </div>
+    <div class="control-group">
+      <label>Black Swan Loss</label>
+      <div class="value-display" id="val-swanloss">-35%</div>
+      <input type="range" id="sl-swanloss" min="10" max="70" step="5" value="35">
+    </div>
+    <div class="control-group">
+      <label>Monthly Withdrawal</label>
+      <div class="value-display" id="val-withdraw">$0</div>
+      <input type="range" id="sl-withdraw" min="0" max="20000" step="500" value="0">
+    </div>
+    <button class="run-btn" onclick="runSimulation()">▶ Run 1,000 Simulations</button>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="chart-title">Portfolio Value Over 60 Months — Simulated Paths</div>
+    <canvas id="mainChart" height="360"></canvas>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-line" style="background:rgba(0,229,160,0.15); height:8px; border-radius:2px; width:32px;"></div> Simulation paths</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--green);"></div> Median (p50)</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--yellow);"></div> Optimistic (p75)</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--red);"></div> Conservative (p25)</div>
+      <div class="legend-item"><div class="legend-line" style="background:rgba(255,255,255,0.2); border-top: 2px dashed rgba(255,255,255,0.3); height:0;"></div> Perfect 9% (no variance)</div>
+    </div>
+  </div>
+
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Median 5-Year Value</div>
+      <div class="stat-value green" id="stat-median">—</div>
+      <div class="stat-sub">p50 outcome</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Optimistic Value</div>
+      <div class="stat-value yellow" id="stat-p75">—</div>
+      <div class="stat-sub">p75 outcome</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Conservative Value</div>
+      <div class="stat-value red" id="stat-p25">—</div>
+      <div class="stat-sub">p25 outcome</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best Case</div>
+      <div class="stat-value blue" id="stat-p90">—</div>
+      <div class="stat-sub">p90 outcome</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Worst Case</div>
+      <div class="stat-value red" id="stat-p10">—</div>
+      <div class="stat-sub">p10 outcome</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">% Paths Profitable</div>
+      <div class="stat-value green" id="stat-profitable">—</div>
+      <div class="stat-sub">vs starting capital</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Black Swans Hit</div>
+      <div class="stat-value yellow" id="stat-swans">—</div>
+      <div class="stat-sub">per simulation</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Perfect 9% Value</div>
+      <div class="stat-value" style="color:var(--muted)" id="stat-perfect">—</div>
+      <div class="stat-sub">zero variance baseline</div>
+    </div>
+  </div>
+
+  <div class="dist-wrap">
+    <div class="dist-title">5-Year Outcome Distribution</div>
+    <div id="dist-bars"></div>
+  </div>
+
+  <div class="assumptions">
+    <strong>Model Assumptions</strong>
+    Monthly returns drawn from a normal distribution around target mean. Black swan events are independent random draws each month at the set frequency — when triggered, apply the black swan loss on top of the normal monthly return. Withdrawals are taken at month-end after return is applied. Portfolio floors at $0 (ruin). This is not financial advice.
+  </div>
+
+  <div style="display:flex;gap:10px;margin-top:16px;">
+    <button onclick="exportSettings()" style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:8px 16px;border-radius:4px;border:1px solid #1a1a2e;background:none;color:#555570;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.color='#00e5a0';this.style.borderColor='#00e5a0'" onmouseout="this.style.color='#555570';this.style.borderColor='#1a1a2e'">↓ Export Settings</button>
+    <button onclick="document.getElementById('mc-import').click()" style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:8px 16px;border-radius:4px;border:1px solid #1a1a2e;background:none;color:#555570;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.color='#00e5a0';this.style.borderColor='#00e5a0'" onmouseout="this.style.color='#555570';this.style.borderColor='#1a1a2e'">↑ Import Settings</button>
+    <input type="file" id="mc-import" accept=".json" style="display:none" onchange="importSettings(event)">
+  </div>
+  <div id="mc-toast" style="position:fixed;bottom:24px;right:24px;background:#141420;border:1px solid #252538;border-radius:6px;padding:10px 18px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#e2e2f0;z-index:300;opacity:0;transform:translateY(8px);transition:all 0.25s;pointer-events:none;"></div>
+
+</div>
+
+<script>
+  // Slider bindings
+  const sliders = {
+    capital: { el: document.getElementById('sl-capital'), disp: document.getElementById('val-capital'), fmt: v => '$' + Number(v).toLocaleString() },
+    ret: { el: document.getElementById('sl-return'), disp: document.getElementById('val-return'), fmt: v => v + '%' },
+    stddev: { el: document.getElementById('sl-stddev'), disp: document.getElementById('val-stddev'), fmt: v => v + '%' },
+    swan: { el: document.getElementById('sl-swan'), disp: document.getElementById('val-swan'), fmt: v => '1 in ' + v },
+    swanloss: { el: document.getElementById('sl-swanloss'), disp: document.getElementById('val-swanloss'), fmt: v => '-' + v + '%' },
+    withdraw: { el: document.getElementById('sl-withdraw'), disp: document.getElementById('val-withdraw'), fmt: v => v == 0 ? '$0' : '$' + Number(v).toLocaleString() },
+  };
+
+  Object.values(sliders).forEach(s => {
+    s.el.addEventListener('input', () => { s.disp.textContent = s.fmt(s.el.value); });
+  });
+
+  function randn() {
+    // Box-Muller
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function fmt(n) {
+    if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
+    return '$' + Math.round(n).toLocaleString();
+  }
+
+  function runSimulation() {
+    const capital = parseFloat(sliders.capital.el.value);
+    const meanRet = parseFloat(sliders.ret.el.value) / 100;
+    const stdDev = parseFloat(sliders.stddev.el.value) / 100;
+    const swanFreq = parseInt(sliders.swan.el.value);
+    const swanLoss = parseFloat(sliders.swanloss.el.value) / 100;
+    const withdraw = parseFloat(sliders.withdraw.el.value);
+    const months = 60;
+    const N = 1000;
+
+    const allPaths = [];
+    let totalSwans = 0;
+    const finalValues = [];
+
+    for (let i = 0; i < N; i++) {
+      const path = [capital];
+      let val = capital;
+      let swans = 0;
+      for (let m = 0; m < months; m++) {
+        const monthRet = meanRet + stdDev * randn();
+        const isSwan = Math.random() < (1 / swanFreq);
+        if (isSwan) swans++;
+        const swanAdj = isSwan ? -swanLoss : 0;
+        val = val * (1 + monthRet + swanAdj) - withdraw;
+        if (val < 0) val = 0;
+        path.push(val);
+      }
+      totalSwans += swans;
+      allPaths.push(path);
+      finalValues.push(val);
+    }
+
+    finalValues.sort((a, b) => a - b);
+
+    const percentile = (pct) => finalValues[Math.floor(pct / 100 * N)];
+    const p10 = percentile(10);
+    const p25 = percentile(25);
+    const p50 = percentile(50);
+    const p75 = percentile(75);
+    const p90 = percentile(90);
+    const profitable = finalValues.filter(v => v > capital).length / N * 100;
+    const avgSwans = (totalSwans / N).toFixed(1);
+
+    // Perfect baseline
+    let perfect = capital;
+    for (let m = 0; m < months; m++) {
+      perfect = perfect * (1 + meanRet) - withdraw;
+      if (perfect < 0) perfect = 0;
+    }
+
+    // Percentile paths
+    const medianPath = allPaths.reduce((best, path) => {
+      return Math.abs(path[months] - p50) < Math.abs(best[months] - p50) ? path : best;
+    });
+    const p75Path = allPaths.reduce((best, path) => {
+      return Math.abs(path[months] - p75) < Math.abs(best[months] - p75) ? path : best;
+    });
+    const p25Path = allPaths.reduce((best, path) => {
+      return Math.abs(path[months] - p25) < Math.abs(best[months] - p25) ? path : best;
+    });
+
+    // Perfect path
+    const perfectPath = [capital];
+    let pv = capital;
+    for (let m = 0; m < months; m++) {
+      pv = pv * (1 + meanRet) - withdraw;
+      if (pv < 0) pv = 0;
+      perfectPath.push(pv);
+    }
+
+    // Update stats
+    document.getElementById('stat-median').textContent = fmt(p50);
+    document.getElementById('stat-p75').textContent = fmt(p75);
+    document.getElementById('stat-p25').textContent = fmt(p25);
+    document.getElementById('stat-p90').textContent = fmt(p90);
+    document.getElementById('stat-p10').textContent = fmt(p10);
+    document.getElementById('stat-profitable').textContent = profitable.toFixed(1) + '%';
+    document.getElementById('stat-swans').textContent = avgSwans + ' events';
+    document.getElementById('stat-perfect').textContent = fmt(perfect);
+
+    // Draw chart
+    drawChart(allPaths, medianPath, p75Path, p25Path, perfectPath, capital);
+
+    // Distribution bars
+    drawDist(finalValues, capital);
+  }
+
+  function drawChart(allPaths, medianPath, p75Path, p25Path, perfectPath, capital) {
+    const canvas = document.getElementById('mainChart');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const W = rect.width - 48;
+    const H = 360;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const pad = { top: 20, right: 20, bottom: 40, left: 70 };
+    const cw = W - pad.left - pad.right;
+    const ch = H - pad.top - pad.bottom;
+
+    // Find max value for scale (cap at p95 to avoid extreme paths dominating)
+    const allFinals = allPaths.map(p => p[p.length - 1]);
+    allFinals.sort((a, b) => a - b);
+    const maxVal = allFinals[Math.floor(0.95 * allFinals.length)] * 1.1;
+    const minVal = 0;
+
+    const xScale = (m) => pad.left + (m / 60) * cw;
+    const yScale = (v) => pad.top + ch - ((v - minVal) / (maxVal - minVal)) * ch;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(26,26,46,0.8)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = pad.top + (i / 5) * ch;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(pad.left + cw, y);
+      ctx.stroke();
+      const val = maxVal - (i / 5) * (maxVal - minVal);
+      ctx.fillStyle = '#333350';
+      ctx.font = '10px IBM Plex Mono';
+      ctx.textAlign = 'right';
+      ctx.fillText(fmt(val), pad.left - 8, y + 4);
+    }
+
+    // X axis labels
+    ctx.fillStyle = '#333350';
+    ctx.textAlign = 'center';
+    for (let yr = 0; yr <= 5; yr++) {
+      const x = xScale(yr * 12);
+      ctx.fillText('Yr ' + yr, x, H - pad.bottom + 18);
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(51,51,80,0.5)';
+      ctx.moveTo(x, pad.top);
+      ctx.lineTo(x, pad.top + ch);
+      ctx.stroke();
+    }
+
+    // Sample paths (draw subset for performance)
+    const step = Math.max(1, Math.floor(allPaths.length / 150));
+    for (let i = 0; i < allPaths.length; i += step) {
+      const path = allPaths[i];
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0,229,160,0.04)';
+      ctx.lineWidth = 1;
+      for (let m = 0; m <= 60; m++) {
+        const x = xScale(m);
+        const y = yScale(Math.min(path[m], maxVal * 1.5));
+        m === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // Perfect baseline (dashed)
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let m = 0; m <= 60; m++) {
+      const x = xScale(m);
+      const y = yScale(Math.min(perfectPath[m], maxVal * 1.5));
+      m === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // P25
+    const drawLine = (path, color, width) => {
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      for (let m = 0; m <= 60; m++) {
+        const x = xScale(m);
+        const y = yScale(Math.min(path[m], maxVal * 1.5));
+        m === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    };
+
+    drawLine(p25Path, '#ff4560', 2);
+    drawLine(p75Path, '#f5c518', 2);
+    drawLine(medianPath, '#00e5a0', 2.5);
+
+    // Starting capital line
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 6]);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yScale(capital));
+    ctx.lineTo(pad.left + cw, yScale(capital));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawDist(finalValues, capital) {
+    const brackets = [
+      { label: 'Lost money', min: 0, max: capital, color: '#ff4560' },
+      { label: '1x–2x', min: capital, max: capital * 2, color: '#ff8860' },
+      { label: '2x–5x', min: capital * 2, max: capital * 5, color: '#f5c518' },
+      { label: '5x–10x', min: capital * 5, max: capital * 10, color: '#88cc88' },
+      { label: '10x–20x', min: capital * 10, max: capital * 20, color: '#00e5a0' },
+      { label: '20x+', min: capital * 20, max: Infinity, color: '#00ffcc' },
+    ];
+
+    const N = finalValues.length;
+    const html = brackets.map(b => {
+      const count = finalValues.filter(v => v >= b.min && v < b.max).length;
+      const pct = (count / N * 100).toFixed(1);
+      return `
+        <div class="dist-row">
+          <div class="dist-label">${b.label}</div>
+          <div class="dist-bar-bg">
+            <div class="dist-bar-fill" style="width:${pct}%; background:${b.color};"></div>
+          </div>
+          <div class="dist-pct" style="color:${b.color}">${pct}%</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('dist-bars').innerHTML = html;
+  }
+
+  // Auto-run on load
+  window.addEventListener('load', () => {
+    setTimeout(runSimulation, 300);
+  });
+
+  // Redraw on resize
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(runSimulation, 200);
+  });
+
+  function getSliderValues() {
+    return Object.fromEntries(Object.entries(sliders).map(([k,s]) => [k, s.el.value]));
+  }
+
+  function exportSettings() {
+    const payload = { version: 1, tool: 'monte-carlo', exported: new Date().toISOString(), settings: getSliderValues() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'montecarlo-settings-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    mcToast('✓ Settings exported');
+  }
+
+  function importSettings(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const payload = JSON.parse(ev.target.result);
+        const s = payload.settings || payload;
+        Object.entries(sliders).forEach(([k, sl]) => {
+          if (s[k] !== undefined) {
+            sl.el.value = s[k];
+            sl.disp.textContent = sl.fmt(s[k]);
+          }
+        });
+        runSimulation();
+        mcToast('✓ Settings imported');
+      } catch { mcToast('✗ Invalid file'); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  function mcToast(msg) {
+    const t = document.getElementById('mc-toast');
+    t.textContent = msg;
+    t.style.opacity = '1'; t.style.transform = 'translateY(0)';
+    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(8px)'; }, 2800);
+  }
+</script>
+</body>
+</html>

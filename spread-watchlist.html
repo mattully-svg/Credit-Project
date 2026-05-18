@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spread Watchlist · Sector Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700&family=Barlow:wght@300;400;500&family=Barlow+Semi+Condensed:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0c0e14;
+    --surf:     #12151e;
+    --surf2:    #181c28;
+    --border:   #1f2436;
+    --border2:  #252a3a;
+    --text:     #d8dce8;
+    --muted:    #4a5070;
+    --dim:      #2a2f45;
+
+    --tech:     #4f8ef7;
+    --health:   #3ecf8e;
+    --finance:  #f5a623;
+    --energy:   #e85d4a;
+    --consumer: #a78bfa;
+    --industrial:#38bdf8;
+    --materials:#fb923c;
+    --utilities:#34d399;
+    --reits:    #f472b6;
+    --comm:     #facc15;
+
+    --active:   #4f8ef7;
+    --positive: #3ecf8e;
+    --warning:  #f5a623;
+    --danger:   #e85d4a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    min-height: 100vh;
+  }
+
+  /* Subtle dot grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(79,142,247,0.07) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    background: rgba(18,21,30,0.95);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--active); }
+
+  .topbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border2);
+  }
+
+  .topbar-sub {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .io-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .io-btn:hover { color: var(--text); border-color: var(--dim); background: var(--surf2); }
+  .io-btn.import:hover { color: var(--positive); border-color: var(--positive); }
+  .io-btn.export:hover { color: var(--active); border-color: var(--active); }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surf2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 13px;
+    color: var(--text);
+    z-index: 300;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .sector-exposure-mini {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .exposure-bar {
+    display: flex;
+    height: 4px;
+    width: 120px;
+    border-radius: 2px;
+    overflow: hidden;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .exposure-seg {
+    height: 100%;
+    transition: width 0.4s ease;
+  }
+
+  /* ── Layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: calc(100vh - 56px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surf);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* Sector nav */
+  .sector-list { display: flex; flex-direction: column; gap: 2px; }
+
+  .sector-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    width: 100%;
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 14px;
+  }
+
+  .sector-btn:hover { background: var(--surf2); }
+  .sector-btn.active { background: var(--surf2); }
+
+  .sector-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sector-btn-name { flex: 1; }
+
+  .sector-count {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--dim);
+    padding: 1px 6px;
+    border-radius: 10px;
+  }
+
+  /* Allocation summary */
+  .alloc-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .alloc-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 36px;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .alloc-name { color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-size: 12px; }
+
+  .alloc-bar-bg {
+    height: 3px;
+    background: var(--dim);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .alloc-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .alloc-pct { text-align: right; font-family: 'Barlow Condensed', sans-serif; color: var(--muted); }
+
+  /* ── Content ── */
+  .content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Content header */
+  .content-header {
+    padding: 20px 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .content-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .sector-pill {
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .content-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: none;
+    color: var(--text);
+  }
+
+  .btn:hover { background: var(--surf2); border-color: var(--dim); }
+
+  .btn-primary {
+    background: var(--active);
+    border-color: var(--active);
+    color: #0c0e14;
+  }
+
+  .btn-primary:hover { opacity: 0.85; background: var(--active); }
+
+  /* Filter bar */
+  .filter-bar {
+    padding: 12px 24px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: none;
+    color: var(--muted);
+  }
+
+  .filter-chip:hover { color: var(--text); border-color: var(--dim); }
+  .filter-chip.active { color: var(--active); border-color: var(--active); background: rgba(79,142,247,0.08); }
+
+  .search-input {
+    margin-left: auto;
+    background: var(--surf2);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 5px 10px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    outline: none;
+    width: 160px;
+    transition: border-color 0.15s;
+  }
+
+  .search-input:focus { border-color: var(--active); }
+  .search-input::placeholder { color: var(--muted); }
+
+  /* Ticker grid */
+  .ticker-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+    align-content: start;
+  }
+
+  /* Ticker card */
+  .ticker-card {
+    background: var(--surf);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    position: relative;
+    transition: border-color 0.15s, background 0.15s;
+    cursor: default;
+  }
+
+  .ticker-card:hover {
+    border-color: var(--border2);
+    background: var(--surf2);
+  }
+
+  .ticker-card.watching {
+    border-left: 3px solid var(--active);
+  }
+
+  .ticker-card.active-trade {
+    border-left: 3px solid var(--positive);
+  }
+
+  .ticker-card.avoid {
+    border-left: 3px solid var(--danger);
+    opacity: 0.6;
+  }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .ticker-symbol {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+
+  .ticker-name {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .card-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .badge {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+
+  .badge-watching  { background: rgba(79,142,247,0.15); color: var(--active); }
+  .badge-active    { background: rgba(62,207,142,0.15); color: var(--positive); }
+  .badge-avoid     { background: rgba(232,93,74,0.15);  color: var(--danger); }
+  .badge-neutral   { background: var(--dim); color: var(--muted); }
+
+  /* Metrics row */
+  .card-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .metric {
+    background: var(--bg);
+    border-radius: 3px;
+    padding: 7px 8px;
+  }
+
+  .metric-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .metric-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* Notes */
+  .card-notes {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+
+  /* Card actions */
+  .card-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+  }
+
+  .card-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: none;
+    color: var(--muted);
+  }
+
+  .card-btn:hover { color: var(--text); background: var(--dim); }
+  .card-btn.active-btn { color: var(--active); border-color: rgba(79,142,247,0.4); }
+  .card-btn.remove-btn:hover { color: var(--danger); border-color: rgba(232,93,74,0.4); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(12,14,20,0.85);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--surf);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 28px;
+    width: 100%;
+    max-width: 480px;
+    transform: translateY(12px);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  .form-label {
+    display: block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--surf2);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--active);
+  }
+
+  .form-select option { background: var(--surf2); }
+  .form-textarea { resize: vertical; min-height: 72px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    justify-content: flex-end;
+  }
+
+  /* Empty state */
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+  .empty-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; margin-bottom: 6px; color: var(--text); }
+  .empty-sub { font-size: 13px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+  @media (max-width: 720px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .ticker-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">Spread<span>Watch</span></div>
+      <div class="topbar-divider"></div>
+      <div class="topbar-sub">Bull Put Spread · Sector Diversification</div>
+    </div>
+    <div class="topbar-right">
+      <div class="sector-exposure-mini">
+        <span>Sector mix</span>
+        <div class="exposure-bar" id="exposure-bar"></div>
+      </div>
+      <button class="io-btn export" onclick="exportData()">↓ Export</button>
+      <button class="io-btn import" onclick="document.getElementById('import-input').click()">↑ Import</button>
+      <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+  <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="main">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Sectors</div>
+        <div class="sector-list" id="sector-list"></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Sector Allocation</div>
+        <div class="alloc-list" id="alloc-list"></div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="content-header">
+        <div class="content-title">
+          <span id="content-title-text">All Tickers</span>
+          <span class="sector-pill" id="sector-pill" style="display:none"></span>
+        </div>
+        <div class="content-actions">
+          <button class="btn btn-primary" onclick="openModal()">+ Add Ticker</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <button class="filter-chip active" data-status="all" onclick="setFilter('all', this)">All</button>
+        <button class="filter-chip" data-status="watching" onclick="setFilter('watching', this)">Watching</button>
+        <button class="filter-chip" data-status="active" onclick="setFilter('active', this)">Active Trade</button>
+        <button class="filter-chip" data-status="avoid" onclick="setFilter('avoid', this)">Avoid</button>
+        <button class="filter-chip" data-status="neutral" onclick="setFilter('neutral', this)">Neutral</button>
+        <input class="search-input" id="search-input" placeholder="Search ticker..." oninput="renderCards()">
+      </div>
+
+      <div class="ticker-grid" id="ticker-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add Ticker</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Symbol</label>
+        <input class="form-input" id="f-symbol" placeholder="e.g. JPM" style="text-transform:uppercase">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Company Name</label>
+        <input class="form-input" id="f-name" placeholder="e.g. JPMorgan Chase">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sector</label>
+      <select class="form-select" id="f-sector"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="f-status">
+          <option value="neutral">Neutral</option>
+          <option value="watching">Watching</option>
+          <option value="active">Active Trade</option>
+          <option value="avoid">Avoid</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target Delta</label>
+        <input class="form-input" id="f-delta" placeholder="e.g. 0.06">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">IV Rank (est.)</label>
+        <input class="form-input" id="f-ivrank" placeholder="e.g. 45">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Price (approx)</label>
+        <input class="form-input" id="f-price" placeholder="e.g. $185">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-textarea" id="f-notes" placeholder="Liquidity, earnings dates, thesis..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTicker()">Save Ticker</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Sector definitions ──
+const SECTORS = [
+  { id: 'tech',       name: 'Technology',       color: '#4f8ef7' },
+  { id: 'health',     name: 'Healthcare',        color: '#3ecf8e' },
+  { id: 'finance',    name: 'Financials',        color: '#f5a623' },
+  { id: 'energy',     name: 'Energy',            color: '#e85d4a' },
+  { id: 'consumer',   name: 'Consumer Discret.', color: '#a78bfa' },
+  { id: 'staples',    name: 'Consumer Staples',  color: '#34d399' },
+  { id: 'industrial', name: 'Industrials',       color: '#38bdf8' },
+  { id: 'materials',  name: 'Materials',         color: '#fb923c' },
+  { id: 'utilities',  name: 'Utilities',         color: '#34d399' },
+  { id: 'reits',      name: 'REITs',             color: '#f472b6' },
+  { id: 'comm',       name: 'Communication',     color: '#facc15' },
+];
+
+const SECTOR_MAP = Object.fromEntries(SECTORS.map(s => [s.id, s]));
+
+// ── Default seed data ──
+const DEFAULT_TICKERS = [
+  // Tech (current)
+  { id: 1, symbol: 'AAPL',  name: 'Apple Inc.',          sector: 'tech',       status: 'watching', delta: '0.06', ivrank: '32', price: '$189', notes: 'Core holding. High liquidity, weekly options. Watch for earnings in Aug.' },
+  { id: 2, symbol: 'MSFT',  name: 'Microsoft Corp.',     sector: 'tech',       status: 'active',   delta: '0.06', ivrank: '28', price: '$420', notes: 'Active position. $5-wide spreads. Strong support at 200-DMA.' },
+  { id: 3, symbol: 'NVDA',  name: 'NVIDIA Corp.',        sector: 'tech',       status: 'watching', delta: '0.07', ivrank: '55', price: '$875', notes: 'High IV. Use wider spreads. Volatile — size down.' },
+  { id: 4, symbol: 'META',  name: 'Meta Platforms',      sector: 'tech',       status: 'active',   delta: '0.06', ivrank: '38', price: '$490', notes: 'Good premium. Solid support levels.' },
+  // Diversification candidates
+  { id: 5, symbol: 'JPM',   name: 'JPMorgan Chase',      sector: 'finance',    status: 'watching', delta: '0.06', ivrank: '30', price: '$195', notes: 'Low correlation to tech. Earnings play — close before Q earnings.' },
+  { id: 6, symbol: 'GS',    name: 'Goldman Sachs',       sector: 'finance',    status: 'neutral',  delta: '0.07', ivrank: '35', price: '$455', notes: 'Good IV. Financials tend to decouple from tech selloffs.' },
+  { id: 7, symbol: 'AMGN',  name: 'Amgen Inc.',          sector: 'health',     status: 'active',   delta: '0.05', ivrank: '25', price: '$295', notes: 'Already running. Biotech but acts defensive. Low beta.' },
+  { id: 8, symbol: 'UNH',   name: 'UnitedHealth Group',  sector: 'health',     status: 'watching', delta: '0.05', ivrank: '22', price: '$520', notes: 'Defensive. Low IV but consistent. Great for low-risk allocation.' },
+  { id: 9, symbol: 'LLY',   name: 'Eli Lilly',           sector: 'health',     status: 'watching', delta: '0.06', ivrank: '40', price: '$780', notes: 'GLP-1 momentum. High price — check margin requirements.' },
+  { id:10, symbol: 'XOM',   name: 'Exxon Mobil',         sector: 'energy',     status: 'neutral',  delta: '0.06', ivrank: '28', price: '$115', notes: 'Oil correlation. Non-correlated to tech. Watch crude prices.' },
+  { id:11, symbol: 'CVX',   name: 'Chevron Corp.',       sector: 'energy',     status: 'neutral',  delta: '0.06', ivrank: '26', price: '$155', notes: 'Similar to XOM. Good for diversification if tech heavy.' },
+  { id:12, symbol: 'CAT',   name: 'Caterpillar Inc.',    sector: 'industrial', status: 'watching', delta: '0.06', ivrank: '32', price: '$345', notes: 'Industrials diversifier. China exposure — monitor macro.' },
+  { id:13, symbol: 'HON',   name: 'Honeywell Intl.',     sector: 'industrial', status: 'neutral',  delta: '0.05', ivrank: '20', price: '$205', notes: 'Low beta. Boring in a good way. Consistent premium.' },
+  { id:14, symbol: 'AMZN',  name: 'Amazon.com',          sector: 'consumer',   status: 'watching', delta: '0.06', ivrank: '35', price: '$185', notes: 'Consumer/Cloud hybrid. Counts as tech correlated — watch exposure.' },
+  { id:15, symbol: 'COST',  name: 'Costco Wholesale',    sector: 'staples',    status: 'neutral',  delta: '0.05', ivrank: '18', price: '$790', notes: 'Defensive staple. Low IV but good for stability in bear markets.' },
+  { id:16, symbol: 'WMT',   name: 'Walmart Inc.',        sector: 'staples',    status: 'neutral',  delta: '0.05', ivrank: '17', price: '$66',  notes: 'Very low IV. Consider only when VIX elevated.' },
+  { id:17, symbol: 'BRK.B', name: 'Berkshire Hathaway',  sector: 'finance',    status: 'neutral',  delta: '0.05', ivrank: '15', price: '$394', notes: 'Low IV, very low beta. Ballast position.' },
+  { id:18, symbol: 'SPG',   name: 'Simon Property Group',sector: 'reits',      status: 'neutral',  delta: '0.07', ivrank: '30', price: '$165', notes: 'REIT for yield. Non-correlated. Rate sensitive — watch Fed.' },
+  { id:19, symbol: 'GOOGL', name: 'Alphabet Inc.',       sector: 'comm',       status: 'watching', delta: '0.06', ivrank: '30', price: '$172', notes: 'Strong but tech correlated. Good liquidity.' },
+  { id:20, symbol: 'NEE',   name: 'NextEra Energy',      sector: 'utilities',  status: 'neutral',  delta: '0.05', ivrank: '20', price: '$68',  notes: 'Rate sensitive utility. Pure diversifier — very low tech correlation.' },
+];
+
+// ── State ──
+let tickers = [];
+let activeSector = 'all';
+let activeFilter = 'all';
+let editingId = null;
+
+function loadData() {
+  const saved = localStorage.getItem('spreadwatch-tickers');
+  if (saved) {
+    tickers = JSON.parse(saved);
+  } else {
+    tickers = DEFAULT_TICKERS.map(t => ({ ...t }));
+    saveData();
+  }
+}
+
+function saveData() {
+  localStorage.setItem('spreadwatch-tickers', JSON.stringify(tickers));
+}
+
+function nextId() {
+  return tickers.length ? Math.max(...tickers.map(t => t.id)) + 1 : 1;
+}
+
+// ── Sidebar ──
+function renderSidebar() {
+  // Sector list
+  const sectorList = document.getElementById('sector-list');
+  const allBtn = `<button class="sector-btn ${activeSector === 'all' ? 'active' : ''}" onclick="setSector('all')">
+    <span style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;display:inline-block;"></span>
+    <span class="sector-btn-name">All Sectors</span>
+    <span class="sector-count">${tickers.length}</span>
+  </button>`;
+
+  const sectorBtns = SECTORS.map(s => {
+    const count = tickers.filter(t => t.sector === s.id).length;
+    if (count === 0) return '';
+    return `<button class="sector-btn ${activeSector === s.id ? 'active' : ''}" onclick="setSector('${s.id}')">
+      <span class="sector-dot" style="background:${s.color}"></span>
+      <span class="sector-btn-name">${s.name}</span>
+      <span class="sector-count">${count}</span>
+    </button>`;
+  }).join('');
+
+  sectorList.innerHTML = allBtn + sectorBtns;
+
+  // Allocation bars
+  const allocList = document.getElementById('alloc-list');
+  const total = tickers.length || 1;
+  allocList.innerHTML = SECTORS.map(s => {
+    const count = tickers.filter(t => t.sector === s.id).length;
+    if (count === 0) return '';
+    const pct = Math.round(count / total * 100);
+    return `<div class="alloc-row">
+      <div class="alloc-name">${s.name.split(' ')[0]}</div>
+      <div class="alloc-bar-bg"><div class="alloc-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
+      <div class="alloc-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  // Exposure mini bar
+  const bar = document.getElementById('exposure-bar');
+  bar.innerHTML = SECTORS.map(s => {
+    const count = tickers.filter(t => t.sector === s.id).length;
+    const pct = count / total * 100;
+    return `<div class="exposure-seg" style="width:${pct}%;background:${s.color}"></div>`;
+  }).join('');
+}
+
+// ── Cards ──
+function renderCards() {
+  const grid = document.getElementById('ticker-grid');
+  const search = document.getElementById('search-input').value.toLowerCase();
+
+  let filtered = tickers.filter(t => {
+    const matchSector = activeSector === 'all' || t.sector === activeSector;
+    const matchStatus = activeFilter === 'all' || t.status === activeFilter;
+    const matchSearch = !search || t.symbol.toLowerCase().includes(search) || t.name.toLowerCase().includes(search);
+    return matchSector && matchStatus && matchSearch;
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <div class="empty-title">No tickers found</div>
+      <div class="empty-sub">Try a different filter or add a new ticker</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(t => {
+    const sector = SECTOR_MAP[t.sector] || { name: t.sector, color: '#666' };
+    const statusClass = t.status === 'watching' ? 'watching' : t.status === 'active' ? 'active-trade' : t.status === 'avoid' ? 'avoid' : '';
+    const badgeClass = { watching: 'badge-watching', active: 'badge-active', avoid: 'badge-avoid', neutral: 'badge-neutral' }[t.status] || 'badge-neutral';
+    const badgeLabel = { watching: 'Watching', active: 'Active', avoid: 'Avoid', neutral: 'Neutral' }[t.status] || t.status;
+
+    return `<div class="ticker-card ${statusClass}">
+      <div class="card-top">
+        <div>
+          <div class="ticker-symbol">${t.symbol}</div>
+          <div class="ticker-name">${t.name}</div>
+        </div>
+        <div class="card-badges">
+          <span class="badge ${badgeClass}">${badgeLabel}</span>
+          <span class="badge" style="background:${sector.color}22;color:${sector.color}">${sector.name}</span>
+        </div>
+      </div>
+      <div class="card-metrics">
+        <div class="metric">
+          <div class="metric-label">Delta</div>
+          <div class="metric-val">${t.delta || '—'}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">IV Rank</div>
+          <div class="metric-val">${t.ivrank ? t.ivrank + '%' : '—'}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Price</div>
+          <div class="metric-val">${t.price || '—'}</div>
+        </div>
+      </div>
+      ${t.notes ? `<div class="card-notes">${t.notes}</div>` : ''}
+      <div class="card-actions">
+        <button class="card-btn active-btn" onclick="cycleStatus(${t.id})">⟳ Status</button>
+        <button class="card-btn" onclick="editTicker(${t.id})">Edit</button>
+        <button class="card-btn remove-btn" onclick="removeTicker(${t.id})">Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function render() {
+  renderSidebar();
+  renderCards();
+  updateContentHeader();
+}
+
+function updateContentHeader() {
+  const titleEl = document.getElementById('content-title-text');
+  const pillEl = document.getElementById('sector-pill');
+  if (activeSector === 'all') {
+    titleEl.textContent = 'All Tickers';
+    pillEl.style.display = 'none';
+  } else {
+    const s = SECTOR_MAP[activeSector];
+    titleEl.textContent = s.name;
+    pillEl.style.display = 'inline-block';
+    pillEl.textContent = tickers.filter(t => t.sector === activeSector).length + ' tickers';
+    pillEl.style.background = s.color + '22';
+    pillEl.style.color = s.color;
+  }
+}
+
+// ── Interactions ──
+function setSector(id) {
+  activeSector = id;
+  render();
+}
+
+function setFilter(status, el) {
+  activeFilter = status;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderCards();
+}
+
+function cycleStatus(id) {
+  const t = tickers.find(x => x.id === id);
+  const cycle = ['neutral', 'watching', 'active', 'avoid'];
+  t.status = cycle[(cycle.indexOf(t.status) + 1) % cycle.length];
+  saveData();
+  render();
+}
+
+function removeTicker(id) {
+  if (!confirm('Remove this ticker?')) return;
+  tickers = tickers.filter(t => t.id !== id);
+  saveData();
+  render();
+}
+
+// ── Modal ──
+function populateSectorSelect() {
+  const sel = document.getElementById('f-sector');
+  sel.innerHTML = SECTORS.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+function openModal(id = null) {
+  editingId = id;
+  document.getElementById('modal-title').textContent = id ? 'Edit Ticker' : 'Add Ticker';
+  if (id) {
+    const t = tickers.find(x => x.id === id);
+    document.getElementById('f-symbol').value  = t.symbol;
+    document.getElementById('f-name').value    = t.name;
+    document.getElementById('f-sector').value  = t.sector;
+    document.getElementById('f-status').value  = t.status;
+    document.getElementById('f-delta').value   = t.delta || '';
+    document.getElementById('f-ivrank').value  = t.ivrank || '';
+    document.getElementById('f-price').value   = t.price || '';
+    document.getElementById('f-notes').value   = t.notes || '';
+  } else {
+    document.getElementById('f-symbol').value  = '';
+    document.getElementById('f-name').value    = '';
+    document.getElementById('f-sector').value  = activeSector !== 'all' ? activeSector : 'tech';
+    document.getElementById('f-status').value  = 'neutral';
+    document.getElementById('f-delta').value   = '';
+    document.getElementById('f-ivrank').value  = '';
+    document.getElementById('f-price').value   = '';
+    document.getElementById('f-notes').value   = '';
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('f-symbol').focus(), 100);
+}
+
+function editTicker(id) { openModal(id); }
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null;
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+function saveTicker() {
+  const symbol = document.getElementById('f-symbol').value.trim().toUpperCase();
+  const name   = document.getElementById('f-name').value.trim();
+  if (!symbol) { alert('Symbol is required'); return; }
+
+  const data = {
+    symbol,
+    name:    name || symbol,
+    sector:  document.getElementById('f-sector').value,
+    status:  document.getElementById('f-status').value,
+    delta:   document.getElementById('f-delta').value.trim(),
+    ivrank:  document.getElementById('f-ivrank').value.trim(),
+    price:   document.getElementById('f-price').value.trim(),
+    notes:   document.getElementById('f-notes').value.trim(),
+  };
+
+  if (editingId) {
+    const idx = tickers.findIndex(t => t.id === editingId);
+    tickers[idx] = { ...tickers[idx], ...data };
+  } else {
+    tickers.push({ id: nextId(), ...data });
+  }
+
+  saveData();
+  closeModal();
+  render();
+}
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'n' && !document.getElementById('modal-overlay').classList.contains('open')
+      && document.activeElement.tagName !== 'INPUT'
+      && document.activeElement.tagName !== 'TEXTAREA') {
+    openModal();
+  }
+});
+
+// ── Export / Import ──
+function exportData() {
+  const payload = { version: 1, exported: new Date().toISOString(), tickers };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'spreadwatch-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Watchlist exported');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const payload = JSON.parse(ev.target.result);
+      const imported = payload.tickers || payload;
+      if (!Array.isArray(imported)) throw new Error('Invalid format');
+      if (!confirm(`Import ${imported.length} tickers? This will replace your current watchlist.`)) return;
+      tickers = imported;
+      saveData();
+      render();
+      showToast('✓ Imported ' + imported.length + ' tickers');
+    } catch {
+      showToast('✗ Invalid file — import failed');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Init ──
+populateSectorSelect();
+loadData();
+render();
+</script>
+</body>
+</html>
