@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spread Trading System</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:     #08090d;
+    --surf:   #0e0f16;
+    --border: #16192a;
+    --text:   #dde0ee;
+    --muted:  #3d4060;
+    --dim:    #1c1f32;
+
+    --c1: #4f8ef7;  /* watchlist  — blue  */
+    --c2: #00c896;  /* vix ladder — green */
+    --c3: #f5c518;  /* monte carlo— gold  */
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated background ── */
+  .bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  /* Large blurred orbs */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.07;
+    animation: drift 20s ease-in-out infinite alternate;
+  }
+
+  .orb-1 { width: 600px; height: 600px; background: var(--c1); top: -200px; left: -200px; animation-delay: 0s; }
+  .orb-2 { width: 500px; height: 500px; background: var(--c2); bottom: -100px; right: -100px; animation-delay: -7s; }
+  .orb-3 { width: 400px; height: 400px; background: var(--c3); top: 40%; left: 50%; animation-delay: -14s; }
+
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(40px, 30px) scale(1.08); }
+  }
+
+  /* Fine grid */
+  .bg-layer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  /* ── Page layout ── */
+  .page {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 56px 0 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    animation: fadeUp 0.7s ease both;
+  }
+
+  .header-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--muted);
+  }
+
+  .header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(52px, 9vw, 96px);
+    line-height: 0.88;
+    letter-spacing: 0.01em;
+    color: var(--text);
+  }
+
+  .header h1 .accent {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(255,255,255,0.25);
+    letter-spacing: 0.02em;
+  }
+
+  .header-right {
+    text-align: right;
+    padding-bottom: 6px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--c2);
+    background: rgba(0,200,150,0.08);
+    border: 1px solid rgba(0,200,150,0.2);
+    border-radius: 20px;
+    padding: 5px 12px;
+    margin-bottom: 10px;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--c2);
+    animation: pulse 2.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,200,150,0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(0,200,150,0); }
+  }
+
+  .header-tagline {
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+    font-family: 'Instrument Serif', serif;
+  }
+
+  /* ── Subtitle strip ── */
+  .subtitle-strip {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    animation: fadeUp 0.7s 0.1s ease both;
+  }
+
+  .subtitle-text {
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.6;
+  }
+
+  .subtitle-text strong { color: var(--text); font-weight: 600; }
+
+  .stats-row {
+    display: flex;
+    gap: 24px;
+  }
+
+  .mini-stat { text-align: center; }
+
+  .mini-stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .mini-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── Tool cards ── */
+  .tools {
+    flex: 1;
+    padding: 40px 0 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    animation: fadeUp 0.7s 0.2s ease both;
+  }
+
+  .tool-card {
+    position: relative;
+    background: var(--surf);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.25s, transform 0.25s;
+    cursor: pointer;
+  }
+
+  .tool-card:hover {
+    transform: translateY(-4px);
+  }
+
+  /* Top accent bar */
+  .tool-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-color);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .tool-card:hover::before { opacity: 1; }
+  .tool-card:hover { border-color: color-mix(in srgb, var(--card-color) 30%, var(--border)); }
+
+  /* Card inner glow on hover */
+  .tool-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--card-color) 8%, transparent), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.35s;
+    pointer-events: none;
+  }
+
+  .tool-card:hover::after { opacity: 1; }
+
+  .card-number {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 64px;
+    line-height: 1;
+    color: var(--card-color);
+    opacity: 0.06;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .tool-card:hover .card-number { opacity: 0.12; }
+
+  .card-body {
+    padding: 28px 24px 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--card-color) 25%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 18px;
+    transition: transform 0.25s;
+  }
+
+  .tool-card:hover .card-icon { transform: scale(1.08); }
+
+  .card-label {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--card-color);
+    margin-bottom: 8px;
+    opacity: 0.8;
+  }
+
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.65;
+    flex: 1;
+  }
+
+  /* Feature tags */
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 16px;
+  }
+
+  .tag {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: var(--dim);
+    color: var(--muted);
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .tool-card:hover .tag {
+    background: color-mix(in srgb, var(--card-color) 10%, var(--dim));
+    color: color-mix(in srgb, var(--card-color) 60%, var(--muted));
+  }
+
+  /* CTA row */
+  .card-cta {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color 0.2s, background 0.2s;
+  }
+
+  .tool-card:hover .card-cta {
+    color: var(--card-color);
+    background: color-mix(in srgb, var(--card-color) 5%, transparent);
+  }
+
+  .cta-arrow {
+    font-size: 16px;
+    transition: transform 0.25s;
+  }
+
+  .tool-card:hover .cta-arrow { transform: translateX(4px); }
+
+  /* ── Footer ── */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    animation: fadeUp 0.7s 0.3s ease both;
+  }
+
+  .footer-left {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .footer-left strong { color: var(--text); font-weight: 500; }
+
+  .footer-links {
+    display: flex;
+    gap: 16px;
+  }
+
+  .footer-link {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.15s;
+    padding: 4px 0;
+    border-bottom: 1px solid transparent;
+  }
+
+  .footer-link:hover { color: var(--text); border-color: var(--dim); }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 720px) {
+    .tools { grid-template-columns: 1fr; gap: 12px; }
+    .header { grid-template-columns: 1fr; }
+    .header-right { text-align: left; }
+    .stats-row { display: none; }
+  }
+
+  @media (max-width: 500px) {
+    .header h1 { font-size: 52px; }
+    .subtitle-strip { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-layer">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-eyebrow">Bull Put Spread · Options Trading System</div>
+      <h1>Spread<br><span class="accent">Trading</span><br>System</h1>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        3 Tools Active
+      </div>
+      <div class="header-tagline">Weekly vertical spreads · Mega-cap equities</div>
+    </div>
+  </div>
+
+  <!-- Subtitle strip -->
+  <div class="subtitle-strip">
+    <div class="subtitle-text">
+      A <strong>risk-first</strong> system for running weekly bull put spreads across diversified sectors.
+      Built around delta discipline, VIX regime awareness, and black swan mitigation.
+    </div>
+    <div class="stats-row">
+      <div class="mini-stat">
+        <div class="mini-stat-val">δ0.06</div>
+        <div class="mini-stat-label">Target Delta</div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-val">$8K</div>
+        <div class="mini-stat-label">Weekly Budget</div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-val">7–14</div>
+        <div class="mini-stat-label">DTE Target</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tool cards -->
+  <div class="tools">
+
+    <!-- Watchlist -->
+    <a class="tool-card" href="spread-watchlist.html" style="--card-color: var(--c1)">
+      <div class="card-number">1</div>
+      <div class="card-body">
+        <div class="card-icon">📋</div>
+        <div class="card-label">Tool 01 · Watchlist</div>
+        <div class="card-title">Sector<br>Planner</div>
+        <div class="card-desc">
+          Track and organize tickers across 11 sectors. Set status, delta targets, IV rank, and trade notes. Diversify beyond mega-caps with curated candidates.
+        </div>
+        <div class="card-tags">
+          <span class="tag">11 Sectors</span>
+          <span class="tag">Status Tracking</span>
+          <span class="tag">IV Rank</span>
+          <span class="tag">Export / Import</span>
+        </div>
+      </div>
+      <div class="card-cta">
+        Open Watchlist
+        <span class="cta-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- VIX Ladder -->
+    <a class="tool-card" href="vix-ladder.html" style="--card-color: var(--c2)">
+      <div class="card-number">2</div>
+      <div class="card-body">
+        <div class="card-icon">📊</div>
+        <div class="card-label">Tool 02 · Regime Engine</div>
+        <div class="card-title">VIX<br>Ladder</div>
+        <div class="card-desc">
+          Enter today's VIX and get a full weekly trade plan — deployable budget, position count, delta targets, and which tickers to run in the current regime.
+        </div>
+        <div class="card-tags">
+          <span class="tag">5 Regimes</span>
+          <span class="tag">Sizing Guidance</span>
+          <span class="tag">Ticker Surfacing</span>
+          <span class="tag">$8K Budget</span>
+        </div>
+      </div>
+      <div class="card-cta">
+        Open VIX Ladder
+        <span class="cta-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Monte Carlo -->
+    <a class="tool-card" href="monte-carlo-simulator.html" style="--card-color: var(--c3)">
+      <div class="card-number">3</div>
+      <div class="card-body">
+        <div class="card-icon">📈</div>
+        <div class="card-label">Tool 03 · Simulator</div>
+        <div class="card-title">Monte<br>Carlo</div>
+        <div class="card-desc">
+          Run 1,000 simulated 5-year paths with variance, black swan events, and monthly withdrawals. See realistic outcome distributions, not just the perfect-compounding fantasy.
+        </div>
+        <div class="card-tags">
+          <span class="tag">1,000 Paths</span>
+          <span class="tag">Black Swans</span>
+          <span class="tag">Withdrawals</span>
+          <span class="tag">P10–P90</span>
+        </div>
+      </div>
+      <div class="card-cta">
+        Open Simulator
+        <span class="cta-arrow">→</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Spread Trading System</strong> · Bull Put Spreads · Not financial advice
+    </div>
+    <div class="footer-links">
+      <a class="footer-link" href="spread-watchlist.html">Watchlist</a>
+      <a class="footer-link" href="vix-ladder.html">VIX Ladder</a>
+      <a class="footer-link" href="monte-carlo-simulator.html">Simulator</a>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
