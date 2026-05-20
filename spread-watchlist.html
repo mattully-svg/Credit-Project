@@ -466,7 +466,7 @@
   /* Metrics row */
   .card-metrics {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
     margin-bottom: 10px;
   }
@@ -607,6 +607,73 @@
 
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+  .lookup-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .lookup-row .form-input { flex: 1; font-size: 18px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .lookup-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--active);
+    background: rgba(79,142,247,0.1);
+    color: var(--active);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .lookup-btn:hover { background: rgba(79,142,247,0.2); }
+  .lookup-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .lookup-status {
+    font-size: 11px;
+    color: var(--muted);
+    min-height: 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.05em;
+  }
+
+  .lookup-status.loading { color: var(--active); }
+  .lookup-status.success { color: var(--positive); }
+  .lookup-status.error   { color: var(--danger); }
+
+  .spin {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(79,142,247,0.1);
+    border: 1px solid rgba(79,142,247,0.2);
+    color: var(--active);
+    margin-left: 6px;
+  }
+
   .modal-actions {
     display: flex;
     gap: 8px;
@@ -704,14 +771,21 @@
 <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
   <div class="modal">
     <div class="modal-title" id="modal-title">Add Ticker</div>
+
+    <div class="lookup-row">
+      <input class="form-input" id="f-symbol" placeholder="Symbol — e.g. JPM" style="text-transform:uppercase;font-size:18px;font-weight:700;letter-spacing:0.05em;">
+      <button class="lookup-btn" id="lookup-btn" onclick="lookupTicker()">⚡ Auto-Fill</button>
+    </div>
+    <div class="lookup-status" id="lookup-status"></div>
+
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Symbol</label>
-        <input class="form-input" id="f-symbol" placeholder="e.g. JPM" style="text-transform:uppercase">
-      </div>
       <div class="form-group">
         <label class="form-label">Company Name</label>
         <input class="form-input" id="f-name" placeholder="e.g. JPMorgan Chase">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Price (approx)</label>
+        <input class="form-input" id="f-price" placeholder="e.g. $185">
       </div>
     </div>
     <div class="form-group">
@@ -739,13 +813,13 @@
         <input class="form-input" id="f-ivrank" placeholder="e.g. 45">
       </div>
       <div class="form-group">
-        <label class="form-label">Price (approx)</label>
-        <input class="form-input" id="f-price" placeholder="e.g. $185">
+        <label class="form-label">Suggested Spread Width</label>
+        <input class="form-input" id="f-width" placeholder="e.g. $5">
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Notes</label>
-      <textarea class="form-textarea" id="f-notes" placeholder="Liquidity, earnings dates, thesis..."></textarea>
+      <label class="form-label">Notes <span class="ai-badge">✦ AI</span></label>
+      <textarea class="form-textarea" id="f-notes" placeholder="Type manually or use Auto-Fill to generate an AI assessment..."></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
@@ -918,6 +992,10 @@ function renderCards() {
           <div class="metric-label">Price</div>
           <div class="metric-val">${t.price || '—'}</div>
         </div>
+        <div class="metric">
+          <div class="metric-label">Width</div>
+          <div class="metric-val">${t.width || '—'}</div>
+        </div>
       </div>
       ${t.notes ? `<div class="card-notes">${t.notes}</div>` : ''}
       <div class="card-actions">
@@ -997,6 +1075,7 @@ function openModal(id = null) {
     document.getElementById('f-delta').value   = t.delta || '';
     document.getElementById('f-ivrank').value  = t.ivrank || '';
     document.getElementById('f-price').value   = t.price || '';
+    document.getElementById('f-width').value   = t.width || '';
     document.getElementById('f-notes').value   = t.notes || '';
   } else {
     document.getElementById('f-symbol').value  = '';
@@ -1006,8 +1085,11 @@ function openModal(id = null) {
     document.getElementById('f-delta').value   = '';
     document.getElementById('f-ivrank').value  = '';
     document.getElementById('f-price').value   = '';
+    document.getElementById('f-width').value   = '';
     document.getElementById('f-notes').value   = '';
   }
+  document.getElementById('lookup-status').className = 'lookup-status';
+  document.getElementById('lookup-status').innerHTML = '';
   document.getElementById('modal-overlay').classList.add('open');
   setTimeout(() => document.getElementById('f-symbol').focus(), 100);
 }
@@ -1036,6 +1118,7 @@ function saveTicker() {
     delta:   document.getElementById('f-delta').value.trim(),
     ivrank:  document.getElementById('f-ivrank').value.trim(),
     price:   document.getElementById('f-price').value.trim(),
+    width:   document.getElementById('f-width').value.trim(),
     notes:   document.getElementById('f-notes').value.trim(),
   };
 
@@ -1102,6 +1185,141 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+// ── Auto-Fill: Price lookup + Claude assessment ──
+const SECTOR_KEYWORDS = {
+  tech: ['technology','software','semiconductor','internet','hardware','cloud','cyber'],
+  health: ['health','pharma','biotech','medical','drug','therapeutics','hospital'],
+  finance: ['bank','financial','insurance','investment','asset management','capital'],
+  energy: ['energy','oil','gas','petroleum','refin','pipeline','renewable'],
+  consumer: ['retail','consumer discretionary','automotive','luxury','e-commerce','restaurant'],
+  staples: ['consumer staples','food','beverage','household','personal care','tobacco'],
+  industrial: ['industrial','aerospace','defense','machinery','construction','transportation'],
+  materials: ['materials','chemical','mining','metal','paper','packaging'],
+  utilities: ['utility','utilities','electric','water','gas utility','power'],
+  reits: ['reit','real estate','property','trust'],
+  comm: ['communication','media','telecom','broadcasting','entertainment','streaming'],
+};
+
+function guessSector(description) {
+  const d = (description || '').toLowerCase();
+  for (const [sector, keywords] of Object.entries(SECTOR_KEYWORDS)) {
+    if (keywords.some(k => d.includes(k))) return sector;
+  }
+  return 'tech';
+}
+
+function setLookupStatus(msg, type = '') {
+  const el = document.getElementById('lookup-status');
+  el.className = 'lookup-status ' + type;
+  el.innerHTML = msg;
+}
+
+async function lookupTicker() {
+  const symbol = document.getElementById('f-symbol').value.trim().toUpperCase();
+  if (!symbol) { setLookupStatus('Enter a symbol first', 'error'); return; }
+
+  const btn = document.getElementById('lookup-btn');
+  btn.disabled = true;
+  setLookupStatus('<span class="spin">⟳</span> Looking up ' + symbol + '...', 'loading');
+
+  try {
+    // Step 1: Fetch quote from Yahoo Finance via public API
+    let name = '', price = '', sector = '', description = '';
+
+    const quoteRes = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
+      { headers: { 'Accept': 'application/json' } }
+    ).catch(() => null);
+
+    if (quoteRes && quoteRes.ok) {
+      const quoteData = await quoteRes.json();
+      const meta = quoteData?.chart?.result?.[0]?.meta;
+      if (meta) {
+        price = meta.regularMarketPrice ? '$' + meta.regularMarketPrice.toFixed(2) : '';
+        name  = meta.longName || meta.shortName || symbol;
+      }
+    }
+
+    setLookupStatus('<span class="spin">⟳</span> Generating AI assessment...', 'loading');
+
+    // Step 2: Claude assessment
+    const prompt = `You are an options trading analyst specializing in weekly bull put spreads on US equities.
+
+Analyze the ticker: ${symbol}${name ? ' (' + name + ')' : ''}
+
+Respond ONLY with a JSON object, no markdown, no explanation:
+{
+  "name": "Full company name",
+  "sector": "one of: tech, health, finance, energy, consumer, staples, industrial, materials, utilities, reits, comm",
+  "price_hint": "approximate current stock price as string like $185 (use your knowledge, leave blank if unsure)",
+  "iv_rank_est": "estimated typical IV rank 0-100 as number",
+  "delta_target": "recommended delta for bull put spread e.g. 0.06",
+  "spread_width": "recommended spread width e.g. $5 or $10",
+  "liquidity": "High / Medium / Low",
+  "notes": "2-3 sentence assessment covering: options liquidity, typical IV characteristics, key risks for spread sellers, any earnings/event risk to watch. Be specific and practical."
+}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const raw = data.content?.find(b => b.type === 'text')?.text || '';
+
+    // Parse JSON — strip any accidental markdown fences
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    // Populate fields
+    if (result.name)          document.getElementById('f-name').value    = result.name;
+    if (result.sector)        document.getElementById('f-sector').value  = result.sector;
+    if (result.delta_target)  document.getElementById('f-delta').value   = result.delta_target;
+    if (result.iv_rank_est)   document.getElementById('f-ivrank').value  = String(result.iv_rank_est);
+    if (result.spread_width)  document.getElementById('f-width').value   = result.spread_width;
+    if (result.notes)         document.getElementById('f-notes').value   = result.notes;
+
+    // Price: prefer live data, fall back to Claude's hint
+    if (price) {
+      document.getElementById('f-price').value = price;
+    } else if (result.price_hint) {
+      document.getElementById('f-price').value = result.price_hint;
+    }
+
+    const liqColor = result.liquidity === 'High' ? 'var(--positive)' : result.liquidity === 'Low' ? 'var(--danger)' : 'var(--warning)';
+    setLookupStatus(
+      `✓ Filled · Liquidity: <strong style="color:${liqColor}">${result.liquidity || '—'}</strong>`,
+      'success'
+    );
+
+  } catch (err) {
+    console.error(err);
+    setLookupStatus('✗ Lookup failed — fill manually', 'error');
+  }
+
+  btn.disabled = false;
+}
+
+// Clear status when symbol changes manually
+document.addEventListener('DOMContentLoaded', () => {
+  const symInput = document.getElementById('f-symbol');
+  if (symInput) {
+    symInput.addEventListener('input', () => {
+      setLookupStatus('');
+    });
+    // Allow Enter key to trigger lookup
+    symInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); lookupTicker(); }
+    });
+  }
+});
 
 // ── Init ──
 populateSectorSelect();
