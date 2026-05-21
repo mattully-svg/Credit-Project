@@ -604,75 +604,100 @@
 
   .form-select option { background: var(--surf2); }
   .form-textarea { resize: vertical; min-height: 72px; }
-
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-  .lookup-row {
+  /* Batch import */
+  .batch-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,8,15,0.88);
+    backdrop-filter: blur(4px);
+    z-index: 200;
     display: flex;
-    gap: 8px;
     align-items: center;
-    margin-bottom: 14px;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
   }
 
-  .lookup-row .form-input { flex: 1; font-size: 18px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  .batch-modal-overlay.open { opacity: 1; pointer-events: all; }
 
-  .lookup-btn {
+  .batch-modal {
+    background: var(--surf);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 28px;
+    width: 100%;
+    max-width: 660px;
+    transform: translateY(12px);
+    transition: transform 0.2s;
+  }
+
+  .batch-modal-overlay.open .batch-modal { transform: translateY(0); }
+
+  .batch-title {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 8px 16px;
-    border-radius: 4px;
-    border: 1px solid var(--active);
-    background: rgba(79,142,247,0.1);
-    color: var(--active);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
   }
 
-  .lookup-btn:hover { background: rgba(79,142,247,0.2); }
-  .lookup-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .batch-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
 
-  .lookup-status {
+  .format-box {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-family: 'Barlow Condensed', monospace;
     font-size: 11px;
     color: var(--muted);
-    min-height: 16px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    margin-bottom: 14px;
+    line-height: 1.8;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .format-box strong { color: var(--active); }
+
+  .batch-textarea {
+    width: 100%;
+    background: var(--surf2);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Barlow Condensed', monospace;
+    font-size: 12px;
+    outline: none;
+    resize: vertical;
+    min-height: 160px;
+    transition: border-color 0.15s;
+    line-height: 1.7;
+  }
+
+  .batch-textarea:focus { border-color: var(--active); }
+  .batch-textarea::placeholder { color: var(--muted); }
+
+  .batch-preview {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--muted);
+    min-height: 18px;
     font-family: 'Barlow Condensed', sans-serif;
     letter-spacing: 0.05em;
   }
 
-  .lookup-status.loading { color: var(--active); }
-  .lookup-status.success { color: var(--positive); }
-  .lookup-status.error   { color: var(--danger); }
-
-  .spin {
-    display: inline-block;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .ai-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 9px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 2px 7px;
-    border-radius: 10px;
-    background: rgba(79,142,247,0.1);
-    border: 1px solid rgba(79,142,247,0.2);
-    color: var(--active);
-    margin-left: 6px;
-  }
+  .batch-preview.ok  { color: var(--positive); }
+  .batch-preview.err { color: var(--danger); }
 
   .modal-actions {
     display: flex;
@@ -720,6 +745,7 @@
         <span>Sector mix</span>
         <div class="exposure-bar" id="exposure-bar"></div>
       </div>
+      <button class="io-btn" onclick="openBatchModal()">⊕ Batch Import</button>
       <button class="io-btn export" onclick="exportData()">↓ Export</button>
       <button class="io-btn import" onclick="document.getElementById('import-input').click()">↑ Import</button>
       <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
@@ -767,25 +793,18 @@
   </div>
 </div>
 
-<!-- Add/Edit Modal -->
+<!-- Single Ticker Modal -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
   <div class="modal">
     <div class="modal-title" id="modal-title">Add Ticker</div>
-
-    <div class="lookup-row">
-      <input class="form-input" id="f-symbol" placeholder="Symbol — e.g. JPM" style="text-transform:uppercase;font-size:18px;font-weight:700;letter-spacing:0.05em;">
-      <button class="lookup-btn" id="lookup-btn" onclick="lookupTicker()">⚡ Auto-Fill</button>
-    </div>
-    <div class="lookup-status" id="lookup-status"></div>
-
     <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Symbol</label>
+        <input class="form-input" id="f-symbol" placeholder="e.g. JPM" style="text-transform:uppercase;font-size:18px;font-weight:700;">
+      </div>
       <div class="form-group">
         <label class="form-label">Company Name</label>
         <input class="form-input" id="f-name" placeholder="e.g. JPMorgan Chase">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Price (approx)</label>
-        <input class="form-input" id="f-price" placeholder="e.g. $185">
       </div>
     </div>
     <div class="form-group">
@@ -813,17 +832,54 @@
         <input class="form-input" id="f-ivrank" placeholder="e.g. 45">
       </div>
       <div class="form-group">
-        <label class="form-label">Suggested Spread Width</label>
+        <label class="form-label">Price (approx)</label>
+        <input class="form-input" id="f-price" placeholder="e.g. $185">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Spread Width</label>
         <input class="form-input" id="f-width" placeholder="e.g. $5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Liquidity</label>
+        <select class="form-select" id="f-liquidity">
+          <option value="">—</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Notes <span class="ai-badge">✦ AI</span></label>
-      <textarea class="form-textarea" id="f-notes" placeholder="Type manually or use Auto-Fill to generate an AI assessment..."></textarea>
+      <label class="form-label">Notes</label>
+      <textarea class="form-textarea" id="f-notes" placeholder="Liquidity, earnings risk, thesis, key levels..."></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveTicker()">Save Ticker</button>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Import Modal -->
+<div class="batch-modal-overlay" id="batch-modal-overlay" onclick="closeBatchOutside(event)">
+  <div class="batch-modal">
+    <div class="batch-title">Batch Import Tickers</div>
+    <div class="batch-sub">
+      Paste the tab-separated table from Claude. Each row is one ticker.<br>
+      Columns: <strong>SYMBOL · NAME · SECTOR · DELTA · IVRANK · PRICE · WIDTH · LIQUIDITY · NOTES</strong>
+    </div>
+    <div class="format-box"><strong>SYMBOL</strong>	<strong>NAME</strong>	<strong>SECTOR</strong>	<strong>DELTA</strong>	<strong>IVRANK</strong>	<strong>PRICE</strong>	<strong>WIDTH</strong>	<strong>LIQUIDITY</strong>	<strong>NOTES</strong>
+JPM	JPMorgan Chase	finance	0.06	30	$195	$5	High	Excellent liquidity. Financials hedge vs tech.
+LLY	Eli Lilly	health	0.06	42	$780	$10	High	High IV, strong trend. Watch earnings in Q2.</div>
+    <textarea class="batch-textarea" id="batch-input"
+      placeholder="Paste rows here..."
+      oninput="previewBatch()"></textarea>
+    <div class="batch-preview" id="batch-preview"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeBatchModal()">Cancel</button>
+      <button class="btn btn-primary" id="batch-confirm-btn" onclick="confirmBatch()" disabled>Import Tickers</button>
     </div>
   </div>
 </div>
@@ -1068,28 +1124,28 @@ function openModal(id = null) {
   document.getElementById('modal-title').textContent = id ? 'Edit Ticker' : 'Add Ticker';
   if (id) {
     const t = tickers.find(x => x.id === id);
-    document.getElementById('f-symbol').value  = t.symbol;
-    document.getElementById('f-name').value    = t.name;
-    document.getElementById('f-sector').value  = t.sector;
-    document.getElementById('f-status').value  = t.status;
-    document.getElementById('f-delta').value   = t.delta || '';
-    document.getElementById('f-ivrank').value  = t.ivrank || '';
-    document.getElementById('f-price').value   = t.price || '';
-    document.getElementById('f-width').value   = t.width || '';
-    document.getElementById('f-notes').value   = t.notes || '';
+    document.getElementById('f-symbol').value    = t.symbol;
+    document.getElementById('f-name').value      = t.name;
+    document.getElementById('f-sector').value    = t.sector;
+    document.getElementById('f-status').value    = t.status;
+    document.getElementById('f-delta').value     = t.delta || '';
+    document.getElementById('f-ivrank').value    = t.ivrank || '';
+    document.getElementById('f-price').value     = t.price || '';
+    document.getElementById('f-width').value     = t.width || '';
+    document.getElementById('f-liquidity').value = t.liquidity || '';
+    document.getElementById('f-notes').value     = t.notes || '';
   } else {
-    document.getElementById('f-symbol').value  = '';
-    document.getElementById('f-name').value    = '';
-    document.getElementById('f-sector').value  = activeSector !== 'all' ? activeSector : 'tech';
-    document.getElementById('f-status').value  = 'neutral';
-    document.getElementById('f-delta').value   = '';
-    document.getElementById('f-ivrank').value  = '';
-    document.getElementById('f-price').value   = '';
-    document.getElementById('f-width').value   = '';
-    document.getElementById('f-notes').value   = '';
+    document.getElementById('f-symbol').value    = '';
+    document.getElementById('f-name').value      = '';
+    document.getElementById('f-sector').value    = activeSector !== 'all' ? activeSector : 'tech';
+    document.getElementById('f-status').value    = 'neutral';
+    document.getElementById('f-delta').value     = '';
+    document.getElementById('f-ivrank').value    = '';
+    document.getElementById('f-price').value     = '';
+    document.getElementById('f-width').value     = '';
+    document.getElementById('f-liquidity').value = '';
+    document.getElementById('f-notes').value     = '';
   }
-  document.getElementById('lookup-status').className = 'lookup-status';
-  document.getElementById('lookup-status').innerHTML = '';
   document.getElementById('modal-overlay').classList.add('open');
   setTimeout(() => document.getElementById('f-symbol').focus(), 100);
 }
@@ -1112,14 +1168,15 @@ function saveTicker() {
 
   const data = {
     symbol,
-    name:    name || symbol,
-    sector:  document.getElementById('f-sector').value,
-    status:  document.getElementById('f-status').value,
-    delta:   document.getElementById('f-delta').value.trim(),
-    ivrank:  document.getElementById('f-ivrank').value.trim(),
-    price:   document.getElementById('f-price').value.trim(),
-    width:   document.getElementById('f-width').value.trim(),
-    notes:   document.getElementById('f-notes').value.trim(),
+    name:      name || symbol,
+    sector:    document.getElementById('f-sector').value,
+    status:    document.getElementById('f-status').value,
+    delta:     document.getElementById('f-delta').value.trim(),
+    ivrank:    document.getElementById('f-ivrank').value.trim(),
+    price:     document.getElementById('f-price').value.trim(),
+    width:     document.getElementById('f-width').value.trim(),
+    liquidity: document.getElementById('f-liquidity').value.trim(),
+    notes:     document.getElementById('f-notes').value.trim(),
   };
 
   if (editingId) {
@@ -1136,8 +1193,9 @@ function saveTicker() {
 
 // Keyboard shortcut
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') { closeModal(); closeBatchModal(); }
   if (e.key === 'n' && !document.getElementById('modal-overlay').classList.contains('open')
+      && !document.getElementById('batch-modal-overlay').classList.contains('open')
       && document.activeElement.tagName !== 'INPUT'
       && document.activeElement.tagName !== 'TEXTAREA') {
     openModal();
@@ -1186,140 +1244,114 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-// ── Auto-Fill: Price lookup + Claude assessment ──
-const SECTOR_KEYWORDS = {
-  tech: ['technology','software','semiconductor','internet','hardware','cloud','cyber'],
-  health: ['health','pharma','biotech','medical','drug','therapeutics','hospital'],
-  finance: ['bank','financial','insurance','investment','asset management','capital'],
-  energy: ['energy','oil','gas','petroleum','refin','pipeline','renewable'],
-  consumer: ['retail','consumer discretionary','automotive','luxury','e-commerce','restaurant'],
-  staples: ['consumer staples','food','beverage','household','personal care','tobacco'],
-  industrial: ['industrial','aerospace','defense','machinery','construction','transportation'],
-  materials: ['materials','chemical','mining','metal','paper','packaging'],
-  utilities: ['utility','utilities','electric','water','gas utility','power'],
-  reits: ['reit','real estate','property','trust'],
-  comm: ['communication','media','telecom','broadcasting','entertainment','streaming'],
-};
+// ── Batch Import ──
+const VALID_SECTORS = ['tech','health','finance','energy','consumer','staples','industrial','materials','utilities','reits','comm'];
 
-function guessSector(description) {
-  const d = (description || '').toLowerCase();
-  for (const [sector, keywords] of Object.entries(SECTOR_KEYWORDS)) {
-    if (keywords.some(k => d.includes(k))) return sector;
-  }
-  return 'tech';
+function openBatchModal() {
+  document.getElementById('batch-input').value = '';
+  document.getElementById('batch-preview').textContent = '';
+  document.getElementById('batch-preview').className = 'batch-preview';
+  document.getElementById('batch-confirm-btn').disabled = true;
+  document.getElementById('batch-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('batch-input').focus(), 100);
 }
 
-function setLookupStatus(msg, type = '') {
-  const el = document.getElementById('lookup-status');
-  el.className = 'lookup-status ' + type;
-  el.innerHTML = msg;
+function closeBatchModal() {
+  document.getElementById('batch-modal-overlay').classList.remove('open');
 }
 
-async function lookupTicker() {
-  const symbol = document.getElementById('f-symbol').value.trim().toUpperCase();
-  if (!symbol) { setLookupStatus('Enter a symbol first', 'error'); return; }
-
-  const btn = document.getElementById('lookup-btn');
-  btn.disabled = true;
-  setLookupStatus('<span class="spin">⟳</span> Looking up ' + symbol + '...', 'loading');
-
-  try {
-    // Step 1: Fetch quote from Yahoo Finance via public API
-    let name = '', price = '', sector = '', description = '';
-
-    const quoteRes = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
-      { headers: { 'Accept': 'application/json' } }
-    ).catch(() => null);
-
-    if (quoteRes && quoteRes.ok) {
-      const quoteData = await quoteRes.json();
-      const meta = quoteData?.chart?.result?.[0]?.meta;
-      if (meta) {
-        price = meta.regularMarketPrice ? '$' + meta.regularMarketPrice.toFixed(2) : '';
-        name  = meta.longName || meta.shortName || symbol;
-      }
-    }
-
-    setLookupStatus('<span class="spin">⟳</span> Generating AI assessment...', 'loading');
-
-    // Step 2: Claude assessment
-    const prompt = `You are an options trading analyst specializing in weekly bull put spreads on US equities.
-
-Analyze the ticker: ${symbol}${name ? ' (' + name + ')' : ''}
-
-Respond ONLY with a JSON object, no markdown, no explanation:
-{
-  "name": "Full company name",
-  "sector": "one of: tech, health, finance, energy, consumer, staples, industrial, materials, utilities, reits, comm",
-  "price_hint": "approximate current stock price as string like $185 (use your knowledge, leave blank if unsure)",
-  "iv_rank_est": "estimated typical IV rank 0-100 as number",
-  "delta_target": "recommended delta for bull put spread e.g. 0.06",
-  "spread_width": "recommended spread width e.g. $5 or $10",
-  "liquidity": "High / Medium / Low",
-  "notes": "2-3 sentence assessment covering: options liquidity, typical IV characteristics, key risks for spread sellers, any earnings/event risk to watch. Be specific and practical."
-}`;
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    if (!res.ok) throw new Error('API error ' + res.status);
-    const data = await res.json();
-    const raw = data.content?.find(b => b.type === 'text')?.text || '';
-
-    // Parse JSON — strip any accidental markdown fences
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(clean);
-
-    // Populate fields
-    if (result.name)          document.getElementById('f-name').value    = result.name;
-    if (result.sector)        document.getElementById('f-sector').value  = result.sector;
-    if (result.delta_target)  document.getElementById('f-delta').value   = result.delta_target;
-    if (result.iv_rank_est)   document.getElementById('f-ivrank').value  = String(result.iv_rank_est);
-    if (result.spread_width)  document.getElementById('f-width').value   = result.spread_width;
-    if (result.notes)         document.getElementById('f-notes').value   = result.notes;
-
-    // Price: prefer live data, fall back to Claude's hint
-    if (price) {
-      document.getElementById('f-price').value = price;
-    } else if (result.price_hint) {
-      document.getElementById('f-price').value = result.price_hint;
-    }
-
-    const liqColor = result.liquidity === 'High' ? 'var(--positive)' : result.liquidity === 'Low' ? 'var(--danger)' : 'var(--warning)';
-    setLookupStatus(
-      `✓ Filled · Liquidity: <strong style="color:${liqColor}">${result.liquidity || '—'}</strong>`,
-      'success'
-    );
-
-  } catch (err) {
-    console.error(err);
-    setLookupStatus('✗ Lookup failed — fill manually', 'error');
-  }
-
-  btn.disabled = false;
+function closeBatchOutside(e) {
+  if (e.target === document.getElementById('batch-modal-overlay')) closeBatchModal();
 }
 
-// Clear status when symbol changes manually
-document.addEventListener('DOMContentLoaded', () => {
-  const symInput = document.getElementById('f-symbol');
-  if (symInput) {
-    symInput.addEventListener('input', () => {
-      setLookupStatus('');
+function parseBatchRows(raw) {
+  const lines = raw.trim().split('\n').filter(l => l.trim());
+  const results = [];
+  const errors = [];
+
+  lines.forEach((line, i) => {
+    // Skip header row if present
+    if (line.trim().toUpperCase().startsWith('SYMBOL')) return;
+
+    const cols = line.split('\t').map(c => c.trim());
+    if (cols.length < 3) { errors.push(`Row ${i+1}: too few columns`); return; }
+
+    const [symbol, name, sector, delta, ivrank, price, width, liquidity, ...noteParts] = cols;
+    const notes = noteParts.join(' ');
+
+    if (!symbol) { errors.push(`Row ${i+1}: missing symbol`); return; }
+
+    // Validate/normalise sector
+    const sectorClean = (sector || '').toLowerCase().trim();
+    const validSector = VALID_SECTORS.includes(sectorClean) ? sectorClean : 'tech';
+
+    results.push({
+      id: null, // assigned on import
+      symbol: symbol.toUpperCase(),
+      name: name || symbol.toUpperCase(),
+      sector: validSector,
+      status: 'neutral',
+      delta: delta || '',
+      ivrank: ivrank || '',
+      price: price || '',
+      width: width || '',
+      liquidity: liquidity || '',
+      notes: notes || '',
     });
-    // Allow Enter key to trigger lookup
-    symInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); lookupTicker(); }
-    });
+  });
+
+  return { results, errors };
+}
+
+function previewBatch() {
+  const raw = document.getElementById('batch-input').value;
+  const preview = document.getElementById('batch-preview');
+  const btn = document.getElementById('batch-confirm-btn');
+
+  if (!raw.trim()) {
+    preview.textContent = '';
+    preview.className = 'batch-preview';
+    btn.disabled = true;
+    return;
   }
-});
+
+  const { results, errors } = parseBatchRows(raw);
+
+  if (errors.length && !results.length) {
+    preview.textContent = '✗ ' + errors.join(' · ');
+    preview.className = 'batch-preview err';
+    btn.disabled = true;
+    return;
+  }
+
+  // Check for dupes against existing
+  const existing = tickers.map(t => t.symbol);
+  const dupes = results.filter(r => existing.includes(r.symbol)).map(r => r.symbol);
+  const newCount = results.length - dupes.length;
+
+  let msg = `✓ ${results.length} ticker${results.length !== 1 ? 's' : ''} parsed`;
+  if (dupes.length) msg += ` · ${dupes.length} already exist (will be skipped): ${dupes.join(', ')}`;
+  if (errors.length) msg += ` · ${errors.length} row error${errors.length > 1 ? 's' : ''} skipped`;
+
+  preview.textContent = msg;
+  preview.className = 'batch-preview ' + (newCount > 0 ? 'ok' : 'err');
+  btn.disabled = newCount === 0;
+}
+
+function confirmBatch() {
+  const raw = document.getElementById('batch-input').value;
+  const { results } = parseBatchRows(raw);
+  const existing = tickers.map(t => t.symbol);
+  const toAdd = results.filter(r => !existing.includes(r.symbol));
+
+  let id = nextId();
+  toAdd.forEach(t => { t.id = id++; });
+  tickers.push(...toAdd);
+  saveData();
+  closeBatchModal();
+  render();
+  showToast(`✓ Added ${toAdd.length} ticker${toAdd.length !== 1 ? 's' : ''}`);
+}
 
 // ── Init ──
 populateSectorSelect();
