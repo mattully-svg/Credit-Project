@@ -455,7 +455,7 @@
     <div class="header-right">
       <div class="status-pill">
         <span class="status-dot"></span>
-        3 Tools Active
+        5 Tools Active
       </div>
       <div class="header-tagline">Weekly vertical spreads · Mega-cap equities</div>
     </div>
@@ -484,7 +484,7 @@
   </div>
 
   <!-- Tool cards -->
-  <div class="tools">
+  <div class="tools" style="grid-template-columns: repeat(3, 1fr);">
 
     <!-- Watchlist -->
     <a class="tool-card" href="spread-watchlist.html" style="--card-color: var(--c1)">
@@ -494,19 +494,16 @@
         <div class="card-label">Tool 01 · Watchlist</div>
         <div class="card-title">Sector<br>Planner</div>
         <div class="card-desc">
-          Track and organize tickers across 11 sectors. Set status, delta targets, IV rank, and trade notes. Diversify beyond mega-caps with curated candidates.
+          Track and organize tickers across 11 sectors. Set status, delta targets, IV rank, and trade notes. Auto-fill via AI on any symbol.
         </div>
         <div class="card-tags">
           <span class="tag">11 Sectors</span>
-          <span class="tag">Status Tracking</span>
+          <span class="tag">AI Auto-Fill</span>
           <span class="tag">IV Rank</span>
           <span class="tag">Export / Import</span>
         </div>
       </div>
-      <div class="card-cta">
-        Open Watchlist
-        <span class="cta-arrow">→</span>
-      </div>
+      <div class="card-cta">Open Watchlist <span class="cta-arrow">→</span></div>
     </a>
 
     <!-- VIX Ladder -->
@@ -517,7 +514,7 @@
         <div class="card-label">Tool 02 · Regime Engine</div>
         <div class="card-title">VIX<br>Ladder</div>
         <div class="card-desc">
-          Enter today's VIX and get a full weekly trade plan — deployable budget, position count, delta targets, and which tickers to run in the current regime.
+          Enter today's VIX and get a full weekly trade plan — deployable budget, position count, delta targets, and which tickers to run.
         </div>
         <div class="card-tags">
           <span class="tag">5 Regimes</span>
@@ -526,10 +523,7 @@
           <span class="tag">$8K Budget</span>
         </div>
       </div>
-      <div class="card-cta">
-        Open VIX Ladder
-        <span class="cta-arrow">→</span>
-      </div>
+      <div class="card-cta">Open VIX Ladder <span class="cta-arrow">→</span></div>
     </a>
 
     <!-- Monte Carlo -->
@@ -540,7 +534,7 @@
         <div class="card-label">Tool 03 · Simulator</div>
         <div class="card-title">Monte<br>Carlo</div>
         <div class="card-desc">
-          Run 1,000 simulated 5-year paths with variance, black swan events, and monthly withdrawals. See realistic outcome distributions, not just the perfect-compounding fantasy.
+          Run 1,000 simulated 5-year paths with variance, black swan events, and monthly withdrawals. Realistic outcomes, not the fantasy.
         </div>
         <div class="card-tags">
           <span class="tag">1,000 Paths</span>
@@ -549,10 +543,47 @@
           <span class="tag">P10–P90</span>
         </div>
       </div>
-      <div class="card-cta">
-        Open Simulator
-        <span class="cta-arrow">→</span>
+      <div class="card-cta">Open Simulator <span class="cta-arrow">→</span></div>
+    </a>
+
+    <!-- Earnings Calendar -->
+    <a class="tool-card" href="earnings-calendar.html" style="--card-color: #f43f5e">
+      <div class="card-number">4</div>
+      <div class="card-body">
+        <div class="card-icon">📅</div>
+        <div class="card-label">Tool 04 · Risk Engine</div>
+        <div class="card-title">Earnings<br>Calendar</div>
+        <div class="card-desc">
+          Upcoming earnings for every watchlist ticker, flagged against your DTE windows. Know before you place — never hold through earnings again.
+        </div>
+        <div class="card-tags">
+          <span class="tag">8-Week View</span>
+          <span class="tag">DTE Flags</span>
+          <span class="tag">AI-Powered</span>
+          <span class="tag">Watchlist Sync</span>
+        </div>
       </div>
+      <div class="card-cta">Open Calendar <span class="cta-arrow">→</span></div>
+    </a>
+
+    <!-- Trade Log -->
+    <a class="tool-card" href="trade-log.html" style="--card-color: #a78bfa">
+      <div class="card-number">5</div>
+      <div class="card-body">
+        <div class="card-icon">🗒️</div>
+        <div class="card-label">Tool 05 · Discipline Engine</div>
+        <div class="card-title">Trade<br>Log</div>
+        <div class="card-desc">
+          Pre-trade entry with 6-point checklist, then a separate close/outcome update. Tracks P&L, win rate, and lessons over time.
+        </div>
+        <div class="card-tags">
+          <span class="tag">Pre-Trade Entry</span>
+          <span class="tag">Checklist</span>
+          <span class="tag">P&L Tracking</span>
+          <span class="tag">Win Rate</span>
+        </div>
+      </div>
+      <div class="card-cta">Open Trade Log <span class="cta-arrow">→</span></div>
     </a>
 
   </div>
@@ -566,6 +597,8 @@
       <a class="footer-link" href="spread-watchlist.html">Watchlist</a>
       <a class="footer-link" href="vix-ladder.html">VIX Ladder</a>
       <a class="footer-link" href="monte-carlo-simulator.html">Simulator</a>
+      <a class="footer-link" href="earnings-calendar.html">Earnings</a>
+      <a class="footer-link" href="trade-log.html">Trade Log</a>
     </div>
   </div>
 

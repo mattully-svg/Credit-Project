@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Log · Spread Watch</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Geist+Mono:wght@300;400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #09090c;
+    --surf:    #0f0f14;
+    --surf2:   #141418;
+    --surf3:   #1a1a20;
+    --border:  #1e1e26;
+    --border2: #252530;
+    --text:    #e2e2ec;
+    --muted:   #8b90b8;
+    --dim:     #28283a;
+
+    --open:    #6366f1;
+    --win:     #22c55e;
+    --loss:    #ef4444;
+    --scratch: #f59e0b;
+    --rolled:  #8b5cf6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Geist', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Subtle vignette */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 36px 20px 80px; position: relative; z-index: 1; }
+
+  /* ── Header ── */
+  .header {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .header-text {}
+
+  .header-eye {
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .header h1 em {
+    font-style: italic;
+    color: var(--open);
+  }
+
+  .header-btn {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border-radius: 5px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .header-btn:hover { color: var(--text); background: var(--surf2); border-color: var(--dim); }
+  .header-btn.primary { background: var(--open); border-color: var(--open); color: #fff; }
+  .header-btn.primary:hover { opacity: 0.85; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    animation: fadeUp 0.5s 0.05s ease both;
+  }
+
+  .stat-cell {
+    background: var(--surf);
+    padding: 16px 18px;
+    transition: background 0.15s;
+  }
+
+  .stat-cell:hover { background: var(--surf2); }
+
+  .stat-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .stat-val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* ── Filter bar ── */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+
+  .fchip {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .fchip:hover { color: var(--text); }
+  .fchip.active { color: var(--open); border-color: var(--open); background: rgba(99,102,241,0.08); }
+
+  .search-box {
+    margin-left: auto;
+    background: var(--surf2);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 5px 12px;
+    color: var(--text);
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    width: 160px;
+    transition: border-color 0.15s;
+  }
+
+  .search-box:focus { border-color: var(--open); }
+  .search-box::placeholder { color: var(--muted); }
+
+  /* ── Trade cards ── */
+  .trades-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: fadeUp 0.5s 0.15s ease both;
+  }
+
+  .trade-card {
+    background: var(--surf);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+
+  .trade-card:hover { border-color: var(--border2); }
+
+  .trade-card.status-open    { border-left: 3px solid var(--open); }
+  .trade-card.status-win     { border-left: 3px solid var(--win); }
+  .trade-card.status-loss    { border-left: 3px solid var(--loss); }
+  .trade-card.status-scratch { border-left: 3px solid var(--scratch); }
+  .trade-card.status-rolled  { border-left: 3px solid var(--rolled); }
+
+  .trade-main {
+    display: grid;
+    grid-template-columns: 90px 1fr auto;
+    gap: 0;
+    align-items: stretch;
+  }
+
+  /* Left: symbol block */
+  .trade-symbol-block {
+    padding: 16px 14px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: var(--surf2);
+  }
+
+  .ts-symbol {
+    font-family: 'Geist Mono', monospace;
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 1;
+    margin-bottom: 5px;
+  }
+
+  .ts-status {
+    font-family: 'Geist Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+
+  .status-open    .ts-status { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+  .status-win     .ts-status { background: rgba(34,197,94,0.12);  color: #86efac; }
+  .status-loss    .ts-status { background: rgba(239,68,68,0.12);  color: #fca5a5; }
+  .status-scratch .ts-status { background: rgba(245,158,11,0.12); color: #fcd34d; }
+  .status-rolled  .ts-status { background: rgba(139,92,246,0.12); color: #c4b5fd; }
+
+  /* Middle: trade details */
+  .trade-details {
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    align-content: center;
+  }
+
+  .td-field {}
+  .td-field-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .td-field-val { font-size: 13px; font-weight: 500; }
+
+  /* Right: P&L + actions */
+  .trade-right {
+    padding: 12px 16px;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    min-width: 120px;
+    background: var(--surf2);
+  }
+
+  .pnl-val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    line-height: 1;
+    text-align: right;
+  }
+
+  .pnl-val.positive { color: var(--win); }
+  .pnl-val.negative { color: var(--loss); }
+  .pnl-val.neutral  { color: var(--muted); }
+
+  .pnl-pct {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    text-align: right;
+  }
+
+  .trade-actions {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .taction-btn {
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .taction-btn:hover { color: var(--text); background: var(--dim); }
+  .taction-btn.close-btn:hover { color: #86efac; border-color: var(--win); }
+  .taction-btn.del-btn:hover   { color: #fca5a5; border-color: var(--loss); }
+
+  /* Notes row */
+  .trade-notes {
+    padding: 8px 16px 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .trade-notes.conditions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    background: rgba(0,0,0,0.15);
+  }
+
+  .cond-item { }
+  .cond-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1px;
+  }
+
+  .cond-val { font-size: 12px; color: var(--text); }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    border: 1px dashed var(--border2);
+    border-radius: 8px;
+  }
+
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+  .empty-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--text); margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(9,9,12,0.88);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surf);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 28px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(14px);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+
+  .modal-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-family: 'Geist Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  .form-section {
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--open);
+    margin: 18px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(99,102,241,0.2);
+  }
+
+  .form-group { margin-bottom: 12px; }
+
+  .form-label {
+    display: block;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--surf2);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 8px 11px;
+    color: var(--text);
+    font-family: 'Geist', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--open); }
+  .form-select option { background: var(--surf2); }
+  .form-textarea { resize: vertical; min-height: 64px; font-size: 13px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .checkbox-row {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: var(--surf2);
+    transition: border-color 0.15s;
+    user-select: none;
+  }
+
+  .checkbox-item:hover { border-color: var(--open); }
+  .checkbox-item input { accent-color: var(--open); width: 14px; height: 14px; }
+  .checkbox-item.checked { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.06); }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    justify-content: flex-end;
+  }
+
+  .mbtn {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border-radius: 5px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .mbtn:hover { color: var(--text); background: var(--surf3); }
+  .mbtn.primary { background: var(--open); border-color: var(--open); color: #fff; }
+  .mbtn.primary:hover { opacity: 0.85; }
+  .mbtn.win-btn { background: rgba(34,197,94,0.1); border-color: var(--win); color: #86efac; }
+  .mbtn.loss-btn { background: rgba(239,68,68,0.1); border-color: var(--loss); color: #fca5a5; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surf2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    z-index: 300;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 640px) {
+    .header { grid-template-columns: 1fr; }
+    .trade-main { grid-template-columns: 1fr; }
+    .trade-symbol-block { flex-direction: row; gap: 12px; border-right: none; border-bottom: 1px solid var(--border); }
+    .trade-right { border-left: none; border-top: 1px solid var(--border); flex-direction: row; align-items: center; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-text">
+      <div class="header-eye">Spread Watch · Discipline Engine</div>
+      <h1>Trade <em>Log</em></h1>
+    </div>
+    <button class="header-btn" onclick="exportLog()">↓ Export</button>
+    <button class="header-btn primary" onclick="openEntryModal()">+ New Trade</button>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-bar" id="stats-bar"></div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <button class="fchip active" data-f="all" onclick="setFilter('all',this)">All</button>
+    <button class="fchip" data-f="open" onclick="setFilter('open',this)">Open</button>
+    <button class="fchip" data-f="win" onclick="setFilter('win',this)">Win</button>
+    <button class="fchip" data-f="loss" onclick="setFilter('loss',this)">Loss</button>
+    <button class="fchip" data-f="scratch" onclick="setFilter('scratch',this)">Scratch</button>
+    <button class="fchip" data-f="rolled" onclick="setFilter('rolled',this)">Rolled</button>
+    <input class="search-box" id="search-box" placeholder="Search ticker..." oninput="renderTrades()">
+  </div>
+
+  <!-- Trades -->
+  <div class="trades-list" id="trades-list"></div>
+
+</div>
+
+<!-- Entry Modal (pre-trade) -->
+<div class="modal-overlay" id="entry-modal" onclick="closeModalOutside(event,'entry-modal')">
+  <div class="modal">
+    <div class="modal-title">New Trade Entry</div>
+    <div class="modal-sub">PRE-TRADE · Log conditions before placing the order</div>
+
+    <div class="form-section">Position Details</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Symbol</label>
+        <input class="form-input" id="e-symbol" placeholder="e.g. JPM" style="text-transform:uppercase;font-weight:600;font-size:16px;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Strategy</label>
+        <select class="form-select" id="e-strategy">
+          <option value="Bull Put Spread">Bull Put Spread</option>
+          <option value="Bear Call Spread">Bear Call Spread</option>
+          <option value="Iron Condor">Iron Condor</option>
+          <option value="Cash Secured Put">Cash Secured Put</option>
+          <option value="Covered Call">Covered Call</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label class="form-label">Short Strike</label>
+        <input class="form-input" id="e-short" placeholder="e.g. 185">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Long Strike</label>
+        <input class="form-input" id="e-long" placeholder="e.g. 180">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Expiry Date</label>
+        <input class="form-input" id="e-expiry" type="date">
+      </div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label class="form-label">Credit Collected ($)</label>
+        <input class="form-input" id="e-credit" placeholder="e.g. 0.28" type="number" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contracts</label>
+        <input class="form-input" id="e-contracts" placeholder="e.g. 4" type="number">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Max Risk ($)</label>
+        <input class="form-input" id="e-maxrisk" placeholder="Auto-calc" type="number">
+      </div>
+    </div>
+
+    <div class="form-section">Market Conditions</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">VIX at Entry</label>
+        <input class="form-input" id="e-vix" placeholder="e.g. 17.4" type="number" step="0.1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">VIX Regime</label>
+        <select class="form-select" id="e-regime">
+          <option value="Calm (&lt;15)">Calm (&lt;15)</option>
+          <option value="Normal (15–20)" selected>Normal (15–20)</option>
+          <option value="Caution (20–28)">Caution (20–28)</option>
+          <option value="Defensive (28–36)">Defensive (28–36)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Delta at Entry</label>
+        <input class="form-input" id="e-delta" placeholder="e.g. 0.06" type="number" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">IV Rank at Entry</label>
+        <input class="form-input" id="e-ivrank" placeholder="e.g. 38" type="number">
+      </div>
+    </div>
+
+    <div class="form-section">Pre-Trade Checklist</div>
+    <div class="checkbox-list" id="checklist-entry">
+      <div class="checkbox-row">
+        <label class="checkbox-item" onclick="toggleCheck(this)">
+          <input type="checkbox" id="chk-vix"> VIX regime confirmed — operating within rules
+        </label>
+        <label class="checkbox-item" onclick="toggleCheck(this)">
+          <input type="checkbox" id="chk-earn"> Earnings calendar checked — no earnings within DTE window
+        </label>
+        <label class="checkbox-item" onclick="toggleCheck(this)">
+          <input type="checkbox" id="chk-sector"> Sector exposure within 25% limit
+        </label>
+        <label class="checkbox-item" onclick="toggleCheck(this)">
+          <input type="checkbox" id="chk-size"> Position size within 2% portfolio risk
+        </label>
+        <label class="checkbox-item" onclick="toggleCheck(this)">
+          <input type="checkbox" id="chk-gtc"> GTC close orders set at 50% profit AND 50% loss
+        </label>
+        <label class="checkbox-item" onclick="toggleCheck(this)">
+          <input type="checkbox" id="chk-cash"> Cash reserve stays above 20% after this trade
+        </label>
+      </div>
+    </div>
+
+    <div class="form-section">Notes</div>
+    <div class="form-group">
+      <label class="form-label">Trade Thesis / Notes</label>
+      <textarea class="form-textarea" id="e-notes" placeholder="Why this ticker, this strike, this week. What are you watching?"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="mbtn" onclick="closeModal('entry-modal')">Cancel</button>
+      <button class="mbtn primary" onclick="saveEntry()">Log Trade →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Close Modal (post-trade) -->
+<div class="modal-overlay" id="close-modal" onclick="closeModalOutside(event,'close-modal')">
+  <div class="modal">
+    <div class="modal-title" id="close-modal-title">Close Trade</div>
+    <div class="modal-sub" id="close-modal-sub">POST-TRADE · Record the outcome</div>
+
+    <div class="form-section">Outcome</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Result</label>
+        <select class="form-select" id="c-result" onchange="updateCloseModal()">
+          <option value="win">Win — expired worthless / closed at profit</option>
+          <option value="loss">Loss — closed at a loss</option>
+          <option value="scratch">Scratch — near breakeven</option>
+          <option value="rolled">Rolled — extended to future expiry</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Close Date</label>
+        <input class="form-input" id="c-date" type="date">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Debit Paid to Close ($)</label>
+        <input class="form-input" id="c-debit" placeholder="0 if expired worthless" type="number" step="0.01" oninput="calcPnl()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Net P&L ($)</label>
+        <input class="form-input" id="c-pnl" placeholder="Auto-calculated" type="number" step="0.01">
+      </div>
+    </div>
+
+    <div id="rolled-section" style="display:none">
+      <div class="form-section">Roll Details</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">New Expiry</label>
+          <input class="form-input" id="c-new-expiry" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Short Strike</label>
+          <input class="form-input" id="c-new-strike" placeholder="e.g. 182">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Roll Credit / Debit</label>
+        <input class="form-input" id="c-roll-credit" placeholder="Net credit received (negative if paid)" type="number" step="0.01">
+      </div>
+    </div>
+
+    <div class="form-section">Lessons Learned</div>
+    <div class="form-group">
+      <label class="form-label">What happened? What would you do differently?</label>
+      <textarea class="form-textarea" id="c-notes" placeholder="Post-trade review — be honest..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="mbtn" onclick="closeModal('close-modal')">Cancel</button>
+      <button class="mbtn primary" onclick="saveClose()">Save Outcome →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORE_KEY = 'tradelog-entries';
+let trades = [];
+let activeFilter = 'all';
+let closingId = null;
+
+// ── Load / Save ──
+function loadTrades() {
+  const raw = localStorage.getItem(STORE_KEY);
+  trades = raw ? JSON.parse(raw) : [];
+}
+
+function saveTrades() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(trades));
+}
+
+function nextId() {
+  return trades.length ? Math.max(...trades.map(t => t.id)) + 1 : 1;
+}
+
+// ── Stats ──
+function renderStats() {
+  const closed = trades.filter(t => t.status !== 'open');
+  const wins   = trades.filter(t => t.status === 'win');
+  const losses = trades.filter(t => t.status === 'loss');
+  const open   = trades.filter(t => t.status === 'open');
+  const totalPnl = closed.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0);
+  const winRate = closed.length ? Math.round(wins.length / closed.length * 100) : 0;
+  const avgWin  = wins.length ? wins.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0) / wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0) / losses.length : 0;
+
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-cell">
+      <div class="stat-label">Total Trades</div>
+      <div class="stat-val">${trades.length}</div>
+      <div class="stat-sub">${open.length} open</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Win Rate</div>
+      <div class="stat-val" style="color:${winRate >= 80 ? 'var(--win)' : winRate >= 60 ? 'var(--scratch)' : 'var(--loss)'}">${winRate}%</div>
+      <div class="stat-sub">${wins.length}W · ${losses.length}L</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Net P&L</div>
+      <div class="stat-val" style="color:${totalPnl >= 0 ? 'var(--win)' : 'var(--loss)'}">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(0)}</div>
+      <div class="stat-sub">${closed.length} closed trades</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Avg Win</div>
+      <div class="stat-val" style="color:var(--win)">+$${avgWin.toFixed(0)}</div>
+      <div class="stat-sub">per closed win</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Avg Loss</div>
+      <div class="stat-val" style="color:var(--loss)">${avgLoss <= 0 ? '' : '-'}$${Math.abs(avgLoss).toFixed(0)}</div>
+      <div class="stat-sub">per closed loss</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Win/Loss Ratio</div>
+      <div class="stat-val">${avgLoss !== 0 ? (Math.abs(avgWin / avgLoss)).toFixed(2) : '—'}</div>
+      <div class="stat-sub">avg win ÷ avg loss</div>
+    </div>
+  `;
+}
+
+// ── Render trades ──
+function renderTrades() {
+  const search = document.getElementById('search-box').value.toLowerCase();
+  let filtered = trades.filter(t => {
+    const matchStatus = activeFilter === 'all' || t.status === activeFilter;
+    const matchSearch = !search || t.symbol.toLowerCase().includes(search);
+    return matchStatus && matchSearch;
+  }).sort((a, b) => b.id - a.id); // newest first
+
+  const list = document.getElementById('trades-list');
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">No trades yet</div>
+      <div class="empty-sub">Click <strong>+ New Trade</strong> to log your first position</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => {
+    const pnl = parseFloat(t.pnl) || null;
+    const pnlClass = pnl === null ? 'neutral' : pnl >= 0 ? 'positive' : 'negative';
+    const pnlStr = pnl === null ? '—' : (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(0);
+
+    const maxRisk = parseFloat(t.maxrisk) || 0;
+    const pnlPct = maxRisk && pnl !== null ? ((pnl / maxRisk) * 100).toFixed(1) + '%' : '';
+
+    const checklist = t.checklist || {};
+    const checkCount = Object.values(checklist).filter(Boolean).length;
+    const checkTotal = 6;
+
+    const checklistColor = checkCount === checkTotal ? 'var(--win)' : checkCount >= 4 ? 'var(--scratch)' : 'var(--loss)';
+
+    const spread = t.short && t.long ? `$${t.short}/$${t.long}` : '—';
+    const credit = t.credit ? '$' + parseFloat(t.credit).toFixed(2) : '—';
+    const contracts = t.contracts || '—';
+    const expiry = t.expiry ? new Date(t.expiry + 'T00:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric'}) : '—';
+    const dte = t.expiry ? Math.round((new Date(t.expiry + 'T00:00:00') - new Date()) / 86400000) : null;
+    const dteStr = dte !== null ? (dte >= 0 ? dte + 'd left' : 'expired') : '';
+
+    const statusColors = { open: 'var(--open)', win: 'var(--win)', loss: 'var(--loss)', scratch: 'var(--scratch)', rolled: 'var(--rolled)' };
+
+    const closeBtn = t.status === 'open'
+      ? `<button class="taction-btn close-btn" onclick="openCloseModal(${t.id})">Close Trade</button>`
+      : '';
+
+    return `<div class="trade-card status-${t.status}">
+      <div class="trade-main">
+        <div class="trade-symbol-block">
+          <div class="ts-symbol" style="color:${statusColors[t.status]}">${t.symbol}</div>
+          <div class="ts-status">${t.status.toUpperCase()}</div>
+        </div>
+        <div class="trade-details">
+          <div class="td-field">
+            <div class="td-field-label">Strategy</div>
+            <div class="td-field-val">${t.strategy || '—'}</div>
+          </div>
+          <div class="td-field">
+            <div class="td-field-label">Spread</div>
+            <div class="td-field-val" style="font-family:'Geist Mono',monospace">${spread}</div>
+          </div>
+          <div class="td-field">
+            <div class="td-field-label">Expiry</div>
+            <div class="td-field-val">${expiry} <span style="font-size:10px;color:var(--muted)">${dteStr}</span></div>
+          </div>
+          <div class="td-field">
+            <div class="td-field-label">Credit · Contracts</div>
+            <div class="td-field-val" style="font-family:'Geist Mono',monospace">${credit} · ${contracts}x</div>
+          </div>
+          <div class="td-field">
+            <div class="td-field-label">VIX · Regime</div>
+            <div class="td-field-val">${t.vix || '—'} · ${t.regime ? t.regime.split(' ')[0] : '—'}</div>
+          </div>
+          <div class="td-field">
+            <div class="td-field-label">Checklist</div>
+            <div class="td-field-val" style="color:${checklistColor};font-family:'Geist Mono',monospace">${checkCount}/${checkTotal}</div>
+          </div>
+        </div>
+        <div class="trade-right">
+          <div>
+            <div class="pnl-val ${pnlClass}">${pnlStr}</div>
+            ${pnlPct ? `<div class="pnl-pct">${pnl >= 0 ? '+' : ''}${pnlPct} of risk</div>` : ''}
+          </div>
+          <div class="trade-actions">
+            ${closeBtn}
+            <button class="taction-btn" onclick="editTrade(${t.id})">Edit</button>
+            <button class="taction-btn del-btn" onclick="deleteTrade(${t.id})">×</button>
+          </div>
+        </div>
+      </div>
+      ${t.notes || t.closeNotes ? `<div class="trade-notes">
+        ${t.notes ? `<span style="color:var(--muted)">Entry: </span>${t.notes}` : ''}
+        ${t.closeNotes ? `<br><span style="color:var(--muted)">Close: </span><span style="color:var(--text)">${t.closeNotes}</span>` : ''}
+      </div>` : ''}
+      <div class="trade-notes conditions">
+        <div class="cond-item"><div class="cond-label">Delta</div><div class="cond-val">${t.delta || '—'}</div></div>
+        <div class="cond-item"><div class="cond-label">IV Rank</div><div class="cond-val">${t.ivrank ? t.ivrank + '%' : '—'}</div></div>
+        <div class="cond-item"><div class="cond-label">Max Risk</div><div class="cond-val">${t.maxrisk ? '$' + t.maxrisk : '—'}</div></div>
+        <div class="cond-item"><div class="cond-label">Logged</div><div class="cond-val" style="font-size:11px">${new Date(t.loggedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function render() { renderStats(); renderTrades(); }
+
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.fchip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTrades();
+}
+
+// ── Entry modal ──
+function openEntryModal(id = null) {
+  if (id) {
+    const t = trades.find(x => x.id === id);
+    document.getElementById('e-symbol').value    = t.symbol;
+    document.getElementById('e-strategy').value  = t.strategy || 'Bull Put Spread';
+    document.getElementById('e-short').value     = t.short || '';
+    document.getElementById('e-long').value      = t.long || '';
+    document.getElementById('e-expiry').value    = t.expiry || '';
+    document.getElementById('e-credit').value    = t.credit || '';
+    document.getElementById('e-contracts').value = t.contracts || '';
+    document.getElementById('e-maxrisk').value   = t.maxrisk || '';
+    document.getElementById('e-vix').value       = t.vix || '';
+    document.getElementById('e-regime').value    = t.regime || 'Normal (15–20)';
+    document.getElementById('e-delta').value     = t.delta || '';
+    document.getElementById('e-ivrank').value    = t.ivrank || '';
+    document.getElementById('e-notes').value     = t.notes || '';
+    // Checklist
+    const cl = t.checklist || {};
+    ['vix','earn','sector','size','gtc','cash'].forEach(k => {
+      const el = document.getElementById('chk-' + k);
+      if (el) { el.checked = !!cl[k]; el.closest('.checkbox-item').classList.toggle('checked', !!cl[k]); }
+    });
+    document.getElementById('entry-modal')._editId = id;
+  } else {
+    document.getElementById('entry-modal')._editId = null;
+    ['e-symbol','e-short','e-long','e-credit','e-contracts','e-maxrisk','e-vix','e-delta','e-ivrank','e-notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('e-strategy').value = 'Bull Put Spread';
+    document.getElementById('e-regime').value = 'Normal (15–20)';
+    document.getElementById('e-expiry').value = '';
+    ['vix','earn','sector','size','gtc','cash'].forEach(k => {
+      const el = document.getElementById('chk-' + k);
+      if (el) { el.checked = false; el.closest('.checkbox-item').classList.remove('checked'); }
+    });
+  }
+  document.getElementById('entry-modal').classList.add('open');
+  setTimeout(() => document.getElementById('e-symbol').focus(), 100);
+}
+
+function editTrade(id) { openEntryModal(id); }
+
+function saveEntry() {
+  const symbol = document.getElementById('e-symbol').value.trim().toUpperCase();
+  if (!symbol) { showToast('✗ Symbol required'); return; }
+
+  const checklist = {};
+  ['vix','earn','sector','size','gtc','cash'].forEach(k => {
+    checklist[k] = document.getElementById('chk-' + k)?.checked || false;
+  });
+
+  const data = {
+    symbol,
+    strategy:  document.getElementById('e-strategy').value,
+    short:     document.getElementById('e-short').value.trim(),
+    long:      document.getElementById('e-long').value.trim(),
+    expiry:    document.getElementById('e-expiry').value,
+    credit:    document.getElementById('e-credit').value,
+    contracts: document.getElementById('e-contracts').value,
+    maxrisk:   document.getElementById('e-maxrisk').value,
+    vix:       document.getElementById('e-vix').value,
+    regime:    document.getElementById('e-regime').value,
+    delta:     document.getElementById('e-delta').value,
+    ivrank:    document.getElementById('e-ivrank').value,
+    notes:     document.getElementById('e-notes').value.trim(),
+    checklist,
+  };
+
+  const editId = document.getElementById('entry-modal')._editId;
+  if (editId) {
+    const idx = trades.findIndex(t => t.id === editId);
+    trades[idx] = { ...trades[idx], ...data };
+    showToast('✓ Trade updated');
+  } else {
+    trades.unshift({ id: nextId(), status: 'open', pnl: null, loggedAt: new Date().toISOString(), ...data });
+    showToast('✓ Trade logged');
+  }
+
+  saveTrades();
+  closeModal('entry-modal');
+  render();
+}
+
+// ── Close modal ──
+function openCloseModal(id) {
+  closingId = id;
+  const t = trades.find(x => x.id === id);
+  document.getElementById('close-modal-title').textContent = `Close ${t.symbol}`;
+  document.getElementById('close-modal-sub').textContent = `${t.strategy || 'Spread'} · $${t.short}/$${t.long} · Exp ${t.expiry || '?'}`;
+  document.getElementById('c-result').value = 'win';
+  document.getElementById('c-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('c-debit').value = '';
+  document.getElementById('c-pnl').value = '';
+  document.getElementById('c-notes').value = '';
+  document.getElementById('c-new-expiry').value = '';
+  document.getElementById('c-new-strike').value = '';
+  document.getElementById('c-roll-credit').value = '';
+  document.getElementById('rolled-section').style.display = 'none';
+  document.getElementById('close-modal').classList.add('open');
+  document.getElementById('close-modal')._tradeData = t;
+}
+
+function updateCloseModal() {
+  const result = document.getElementById('c-result').value;
+  document.getElementById('rolled-section').style.display = result === 'rolled' ? 'block' : 'none';
+  calcPnl();
+}
+
+function calcPnl() {
+  const modal = document.getElementById('close-modal');
+  const t = modal._tradeData;
+  if (!t) return;
+  const debit = parseFloat(document.getElementById('c-debit').value) || 0;
+  const credit = parseFloat(t.credit) || 0;
+  const contracts = parseInt(t.contracts) || 1;
+  const net = (credit - debit) * contracts * 100;
+  document.getElementById('c-pnl').value = net.toFixed(2);
+}
+
+function saveClose() {
+  const result = document.getElementById('c-result').value;
+  const pnl = document.getElementById('c-pnl').value;
+  const closeNotes = document.getElementById('c-notes').value.trim();
+
+  const idx = trades.findIndex(t => t.id === closingId);
+  if (idx < 0) return;
+
+  trades[idx] = {
+    ...trades[idx],
+    status: result,
+    pnl: parseFloat(pnl) || 0,
+    closeDate: document.getElementById('c-date').value,
+    closeNotes,
+    ...(result === 'rolled' ? {
+      rolledExpiry: document.getElementById('c-new-expiry').value,
+      rolledStrike: document.getElementById('c-new-strike').value,
+      rollCredit: document.getElementById('c-roll-credit').value,
+    } : {}),
+  };
+
+  saveTrades();
+  closeModal('close-modal');
+  render();
+  showToast('✓ Trade closed');
+}
+
+// ── Delete ──
+function deleteTrade(id) {
+  if (!confirm('Delete this trade log entry?')) return;
+  trades = trades.filter(t => t.id !== id);
+  saveTrades();
+  render();
+  showToast('✓ Entry deleted');
+}
+
+// ── Export ──
+function exportLog() {
+  const payload = { version: 1, tool: 'trade-log', exported: new Date().toISOString(), trades };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'tradelog-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Trade log exported');
+}
+
+// ── Helpers ──
+function toggleCheck(label) {
+  const cb = label.querySelector('input[type="checkbox"]');
+  cb.checked = !cb.checked;
+  label.classList.toggle('checked', cb.checked);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModalOutside(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal('entry-modal'); closeModal('close-modal'); }
+});
+
+// ── Init ──
+loadTrades();
+render();
+</script>
+</body>
+</html>
