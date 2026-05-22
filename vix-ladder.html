@@ -684,6 +684,24 @@
                  min="5" max="60" step="0.5" value="17"
                  oninput="syncFromSlider()">
         </div>
+        <button id="fetch-vix-btn" onclick="fetchVix()" style="
+          font-family:'Azeret Mono',monospace;
+          font-size:10px;
+          letter-spacing:0.1em;
+          text-transform:uppercase;
+          padding:8px 14px;
+          border-radius:4px;
+          border:1px solid var(--border2);
+          background:none;
+          color:var(--muted);
+          cursor:pointer;
+          transition:all 0.15s;
+          white-space:nowrap;
+          flex-shrink:0;
+        " onmouseover="this.style.color='var(--regime-color)';this.style.borderColor='var(--regime-color)'"
+           onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border2)'">
+          ⟳ Fetch Live
+        </button>
       </div>
       <div class="regime-badge" id="regime-badge">
         <div class="regime-badge-label">Regime</div>
@@ -691,6 +709,14 @@
         <div class="regime-badge-range" id="regime-badge-range">—</div>
       </div>
     </div>
+    <div id="vix-fetch-status" style="
+      font-family:'Azeret Mono',monospace;
+      font-size:10px;
+      letter-spacing:0.1em;
+      color:var(--muted);
+      margin-top:10px;
+      min-height:14px;
+    "></div>
     <div class="vix-ladder-visual" id="ladder-visual">
       <div class="ladder-seg" style="background:var(--r0); flex:2" data-regime="0"></div>
       <div class="ladder-seg" style="background:var(--r1); flex:1.5" data-regime="1"></div>
@@ -865,6 +891,69 @@ function vixToRegime(v) {
 
 function getRegimeColor(id) {
   return ['#00c896','#4fc3f7','#ffd54f','#ff8a65','#ef5350'][id];
+}
+
+// ── Live VIX Fetch ──
+async function fetchVix() {
+  const btn = document.getElementById('fetch-vix-btn');
+  const status = document.getElementById('vix-fetch-status');
+  btn.textContent = '⟳ Fetching...';
+  btn.disabled = true;
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Fetching live VIX...';
+
+  // Try stooq (CORS-friendly, no key required)
+  try {
+    const res = await fetch('https://stooq.com/q/l/?s=%5EVIX&f=sd2t2ohlcv&h&e=csv', { cache: 'no-cache' });
+    if (res.ok) {
+      const text = await res.text();
+      const lines = text.trim().split('\n');
+      if (lines.length >= 2) {
+        const cols = lines[1].split(',');
+        const close = parseFloat(cols[6]); // close price column
+        if (!isNaN(close) && close > 0) {
+          setVixValue(close);
+          status.style.color = 'var(--r' + vixToRegime(close) + ')';
+          status.textContent = `✓ Live VIX: ${close.toFixed(2)} — fetched from CBOE via stooq · ${new Date().toLocaleTimeString()}`;
+          btn.textContent = '⟳ Fetch Live';
+          btn.disabled = false;
+          return;
+        }
+      }
+    }
+  } catch(e) { /* fall through to next source */ }
+
+  // Fallback: Yahoo Finance via allorigins proxy
+  try {
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d';
+    const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { cache: 'no-cache' });
+    if (res.ok) {
+      const wrapper = await res.json();
+      const data = JSON.parse(wrapper.contents);
+      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if (price && !isNaN(price)) {
+        setVixValue(price);
+        status.style.color = 'var(--r' + vixToRegime(price) + ')';
+        status.textContent = `✓ Live VIX: ${price.toFixed(2)} — fetched via Yahoo Finance · ${new Date().toLocaleTimeString()}`;
+        btn.textContent = '⟳ Fetch Live';
+        btn.disabled = false;
+        return;
+      }
+    }
+  } catch(e) { /* fall through */ }
+
+  // Both failed
+  status.style.color = 'var(--r4)';
+  status.textContent = '✗ Could not fetch live VIX — enter manually or try again';
+  btn.textContent = '⟳ Fetch Live';
+  btn.disabled = false;
+}
+
+function setVixValue(v) {
+  const rounded = Math.round(v * 10) / 10;
+  document.getElementById('vix-input').value = rounded;
+  document.getElementById('vix-slider').value = Math.min(rounded, 60);
+  updateRegime(rounded);
 }
 
 // ── Sync inputs ──
